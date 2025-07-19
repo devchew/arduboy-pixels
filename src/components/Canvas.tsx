@@ -90,29 +90,46 @@ export function Canvas({
         }
       } else {
         switch (e.key.toLowerCase()) {
-          case 'p':
-            onToolChange('pencil');
+          case "p":
+            onToolChange("pencil");
             break;
-          case 'e':
-            onToolChange('eraser');
+          case "e":
+            onToolChange("eraser");
             break;
-          case 'f':
-            onToolChange('fill');
+          case "f":
+            onToolChange("fill");
             break;
-          case 'l':
-            onToolChange('line');
+          case "l":
+            onToolChange("line");
             break;
-          case 'r':
-            onToolChange('rectangle');
+          case "r":
+            onToolChange("rectangle");
             break;
-          case 'c':
-            onToolChange('circle');
+          case "c":
+            onToolChange("circle");
             break;
-          case 'i':
-            onToolChange('invert');
+          case "i":
+            onToolChange("invert");
             break;
-          case 'g':
+          case "g":
             onToggleGrid();
+            break;
+          case "x":
+            onToolChange(tool === "pencil" ? "eraser" : "pencil");
+            break;
+          case "[":
+            if (canvasState.brushSize > 1) {
+              setCanvasState((prev) => ({
+                ...prev,
+                brushSize: Math.max(1, prev.brushSize - 1),
+              }));
+            }
+            break;
+          case "]":
+            setCanvasState((prev) => ({
+              ...prev,
+              brushSize: Math.min(128, prev.brushSize + 1),
+            }));
             break;
         }
       }
