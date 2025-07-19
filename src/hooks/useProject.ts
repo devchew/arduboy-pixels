@@ -108,6 +108,7 @@ export function useProject() {
         height,
         layers: [],
         backgroundColor: "transparent",
+        zoom: 1, // Default zoom level
       };
 
       const item: ProjectItem = {

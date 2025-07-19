@@ -8,10 +8,7 @@ import { CompositionLayerPanel } from "./CompositionLayerPanel";
 interface CompositionEditorProps {
   composition: CompositionData;
   sprites: ProjectItem[];
-  onCompositionUpdate: (
-    compositionId: string,
-    updates: Partial<CompositionData>
-  ) => void;
+  onCompositionUpdate: (updates: Partial<CompositionData>) => void;
   onAddLayer: (spriteId: string, x?: number, y?: number) => void;
   onRemoveLayer: (layerId: string) => void;
   onUpdateLayer: (
@@ -31,9 +28,16 @@ export function CompositionEditor({
   onDuplicateLayer,
 }: CompositionEditorProps) {
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(composition.zoom || 1);
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
+
+  // Save zoom level to composition data when it changes
+  useEffect(() => {
+    if (composition.zoom !== zoom) {
+      onCompositionUpdate({ zoom });
+    }
+  }, [zoom, composition.zoom, onCompositionUpdate]);
 
   // Helper function to round zoom to prevent UI breaking
   const roundZoom = (value: number): number => {
@@ -165,7 +169,7 @@ export function CompositionEditor({
                   max="1024"
                   value={composition.width}
                   onChange={(e) =>
-                    onCompositionUpdate(composition.id, {
+                    onCompositionUpdate({
                       width: parseInt(e.target.value) || 256,
                     })
                   }
@@ -187,7 +191,7 @@ export function CompositionEditor({
                   max="1024"
                   value={composition.height}
                   onChange={(e) =>
-                    onCompositionUpdate(composition.id, {
+                    onCompositionUpdate({
                       height: parseInt(e.target.value) || 256,
                     })
                   }

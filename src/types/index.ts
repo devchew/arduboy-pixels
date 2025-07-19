@@ -49,6 +49,7 @@ export interface CompositionData {
   height: number;
   layers: CompositionLayer[];
   backgroundColor: "transparent" | "black" | "white";
+  zoom?: number; // Store zoom level for composition
 }
 
 export interface Project {

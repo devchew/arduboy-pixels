@@ -417,9 +417,9 @@ function App() {
             <CompositionEditor
               composition={activeItem.compositionData}
               sprites={allProjectItems}
-              onCompositionUpdate={(compositionId, updates) => {
+              onCompositionUpdate={(updates) => {
                 if (activeItem.compositionData) {
-                  updateItem(compositionId, {
+                  updateItem(activeItem.id, {
                     compositionData: {
                       ...activeItem.compositionData,
                       ...updates,
