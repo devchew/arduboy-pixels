@@ -57,7 +57,10 @@ export function ExportDialog({
     if (exportMode === "single" && activeSprite) {
       code = exportSprite(activeSprite, options);
     } else if (exportMode === "project") {
-      code = exportProject(sprites, projectName);
+      code = exportProject(sprites, projectName, {
+        format: options.format,
+        includeDimensions: options.includeDimensions,
+      });
       code += "\n\n" + generateMetadata(sprites);
     }
 
@@ -214,10 +217,55 @@ export function ExportDialog({
               </>
             )}
 
+            {/* Project Export Options */}
+            {exportMode === "project" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Format
+                  </label>
+                  <select
+                    value={options.format}
+                    onChange={(e) =>
+                      setOptions((prev) => ({
+                        ...prev,
+                        format: e.target.value as any,
+                      }))
+                    }
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
+                  >
+                    <option value="progmem">PROGMEM (Flash Storage)</option>
+                    <option value="const">const (RAM)</option>
+                    <option value="raw">Raw Data</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={options.includeDimensions}
+                      onChange={(e) =>
+                        setOptions((prev) => ({
+                          ...prev,
+                          includeDimensions: e.target.checked,
+                        }))
+                      }
+                      className="mr-2"
+                    />
+                    <span className="text-gray-300">Include Dimensions</span>
+                  </label>
+                </div>
+              </>
+            )}
+
             {/* Generate Button */}
             <button
               onClick={handleGenerate}
-              disabled={!activeSprite && exportMode === "single"}
+              disabled={
+                (exportMode === "single" && !activeSprite) ||
+                (exportMode === "project" && sprites.length === 0)
+              }
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-2 px-4 rounded flex items-center justify-center"
             >
               <FileText size={16} className="mr-2" />
