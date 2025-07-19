@@ -1,8 +1,20 @@
 // Drawing tools toolbar component
 
 import React from 'react';
-import { Pencil, Eraser, PaintBucket, Minus, Square, Circle, RotateCcw, RotateCw, Grid3X3, ZoomIn, ZoomOut, Clover as Invert } from 'lucide-react';
+import {
+  Pencil,
+  Eraser,
+  PaintBucket,
+  Minus,
+  Square,
+  Circle,
+  RotateCcw,
+  RotateCw,
+  Grid3X3,
+  Clover as Invert,
+} from "lucide-react";
 import { DrawingTool, BrushStyle } from "../types";
+import { ZoomControls } from "./ZoomControls";
 
 interface ToolbarProps {
   activeTool: DrawingTool;
@@ -21,6 +33,8 @@ interface ToolbarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  enableScrollZoom?: boolean;
+  scrollZoomTarget?: React.RefObject<HTMLElement>;
 }
 
 const tools: {
@@ -71,6 +85,8 @@ export function Toolbar({
   canRedo,
   onUndo,
   onRedo,
+  enableScrollZoom,
+  scrollZoomTarget,
 }: ToolbarProps) {
   return (
     <div className="bg-gray-800 border-b border-gray-700 p-3">
@@ -194,36 +210,17 @@ export function Toolbar({
 
         {/* View Controls */}
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onZoomChange(Math.max(1, zoom - 1))}
-            className="p-2 rounded hover:bg-gray-700 text-gray-300"
-            title="Zoom Out"
-          >
-            <ZoomOut size={18} />
-          </button>
-
-          <div className="flex items-center space-x-2">
-            <input
-              type="range"
-              min="1"
-              max="128"
-              value={zoom}
-              onChange={(e) => onZoomChange(parseInt(e.target.value))}
-              className="w-20"
-              title="Zoom Level"
-            />
-            <span className="text-sm text-gray-300 min-w-12 text-center">
-              {zoom}x
-            </span>
-          </div>
-
-          <button
-            onClick={() => onZoomChange(Math.min(128, zoom + 1))}
-            className="p-2 rounded hover:bg-gray-700 text-gray-300"
-            title="Zoom In"
-          >
-            <ZoomIn size={18} />
-          </button>
+          <ZoomControls
+            zoom={zoom}
+            onZoomChange={onZoomChange}
+            minZoom={1}
+            maxZoom={128}
+            zoomStep={1}
+            presets={[1, 2, 4, 8, 64]}
+            variant="toolbar"
+            enableScrollZoom={enableScrollZoom}
+            scrollZoomTarget={scrollZoomTarget}
+          />
 
           <button
             onClick={onToggleGrid}

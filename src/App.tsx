@@ -1,6 +1,6 @@
 // Main application component
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Download, Upload, Save, FolderOpen, Settings } from "lucide-react";
 import { FileExplorer } from "./components/FileExplorer";
 import { Toolbar } from "./components/Toolbar";
@@ -52,6 +52,7 @@ function App() {
   });
 
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const spriteCanvasAreaRef = useRef<HTMLDivElement>(null);
 
   // Automatically switch view mode based on active item type
   useEffect(() => {
@@ -383,35 +384,39 @@ function App() {
                 canRedo={canvasHook.canRedo}
                 onUndo={canvasHook.undo}
                 onRedo={canvasHook.redo}
+                enableScrollZoom={true}
+                scrollZoomTarget={spriteCanvasAreaRef}
               />
 
               {/* Canvas */}
-              <Canvas
-                pixels={activeItem.spriteData.pixels}
-                onPixelsChange={handlePixelsChange}
-                width={activeItem.spriteData.width}
-                height={activeItem.spriteData.height}
-                tool={canvasSettings.tool}
-                zoom={canvasSettings.zoom}
-                showGrid={canvasSettings.showGrid}
-                eraserSize={canvasSettings.eraserSize}
-                brushSize={canvasSettings.brushSize}
-                brushStyle={canvasSettings.brushStyle}
-                onUndo={canvasHook.undo}
-                onRedo={canvasHook.redo}
-                onToolChange={(tool) =>
-                  setCanvasSettings((prev) => ({
-                    ...prev,
-                    tool: tool as DrawingTool,
-                  }))
-                }
-                onToggleGrid={() =>
-                  setCanvasSettings((prev) => ({
-                    ...prev,
-                    showGrid: !prev.showGrid,
-                  }))
-                }
-              />
+              <div ref={spriteCanvasAreaRef} className="flex-1">
+                <Canvas
+                  pixels={activeItem.spriteData.pixels}
+                  onPixelsChange={handlePixelsChange}
+                  width={activeItem.spriteData.width}
+                  height={activeItem.spriteData.height}
+                  tool={canvasSettings.tool}
+                  zoom={canvasSettings.zoom}
+                  showGrid={canvasSettings.showGrid}
+                  eraserSize={canvasSettings.eraserSize}
+                  brushSize={canvasSettings.brushSize}
+                  brushStyle={canvasSettings.brushStyle}
+                  onUndo={canvasHook.undo}
+                  onRedo={canvasHook.redo}
+                  onToolChange={(tool) =>
+                    setCanvasSettings((prev) => ({
+                      ...prev,
+                      tool: tool as DrawingTool,
+                    }))
+                  }
+                  onToggleGrid={() =>
+                    setCanvasSettings((prev) => ({
+                      ...prev,
+                      showGrid: !prev.showGrid,
+                    }))
+                  }
+                />
+              </div>
             </>
           ) : viewMode === "composition" && activeItem?.compositionData ? (
             <CompositionEditor
