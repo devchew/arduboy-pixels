@@ -1,7 +1,8 @@
 // Size selector component for configuring sprite and screen dimensions
 
 import React, { useState, useEffect } from 'react';
-import { Monitor, Image, Check, X } from 'lucide-react';
+import { Monitor, Image, Check, X, Folder } from 'lucide-react';
+import { ProjectItem } from '../types';
 
 interface SizeSelectorProps {
   type: 'sprite' | 'screen';
@@ -10,6 +11,12 @@ interface SizeSelectorProps {
   onSizeChange: (width: number, height: number) => void;
   onCancel?: () => void;
   isOpen: boolean;
+  mode?: 'create' | 'resize';
+  // For create mode
+  onCreateWithDetails?: (width: number, height: number, name: string, parentId?: string) => void;
+  defaultName?: string;
+  parentId?: string;
+  availableFolders?: ProjectItem[];
 }
 
 const SPRITE_PRESETS = [
@@ -31,12 +38,21 @@ export function SizeSelector({
   currentHeight,
   onSizeChange,
   onCancel,
-  isOpen
+  isOpen,
+  mode = 'create',
+  onCreateWithDetails,
+  defaultName,
+  parentId,
+  availableFolders = []
 }: SizeSelectorProps) {
   const [selectedPreset, setSelectedPreset] = useState<string>('custom');
   const [customWidth, setCustomWidth] = useState<string>(currentWidth.toString());
   const [customHeight, setCustomHeight] = useState<string>(currentHeight.toString());
-  const [errors, setErrors] = useState<{ width?: string; height?: string }>({});
+  const [errors, setErrors] = useState<{ width?: string; height?: string; name?: string }>({});
+  
+  // New state for create mode
+  const [itemName, setItemName] = useState<string>(defaultName || `New ${type === 'sprite' ? 'Sprite' : 'Screen'}`);
+  const [selectedFolderId, setSelectedFolderId] = useState<string>(parentId || 'root');
 
   const presets = type === 'sprite' ? SPRITE_PRESETS : SCREEN_PRESETS;
 
@@ -56,9 +72,9 @@ export function SizeSelector({
     setCustomHeight(currentHeight.toString());
   }, [currentWidth, currentHeight, presets]);
 
-  // Validate custom dimensions
-  const validateDimensions = (width: string, height: string) => {
-    const newErrors: { width?: string; height?: string } = {};
+  // Validate custom dimensions and name
+  const validateDimensions = (width: string, height: string, name?: string) => {
+    const newErrors: { width?: string; height?: string; name?: string } = {};
     
     const widthNum = parseInt(width);
     const heightNum = parseInt(height);
@@ -84,6 +100,15 @@ export function SizeSelector({
       newErrors.height = 'Screen height cannot exceed 64 pixels (Arduboy limit)';
     }
     
+    // Name validation for create mode
+    if (mode === 'create' && name !== undefined) {
+      if (!name || name.trim().length === 0) {
+        newErrors.name = 'Name is required';
+      } else if (name.trim().length > 50) {
+        newErrors.name = 'Name cannot exceed 50 characters';
+      }
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -104,21 +129,39 @@ export function SizeSelector({
   const handleCustomWidthChange = (value: string) => {
     setCustomWidth(value);
     setSelectedPreset('custom');
-    validateDimensions(value, customHeight);
+    validateDimensions(value, customHeight, mode === 'create' ? itemName : undefined);
   };
 
   const handleCustomHeightChange = (value: string) => {
     setCustomHeight(value);
     setSelectedPreset('custom');
-    validateDimensions(customWidth, value);
+    validateDimensions(customWidth, value, mode === 'create' ? itemName : undefined);
+  };
+
+  const handleNameChange = (value: string) => {
+    setItemName(value);
+    validateDimensions(customWidth, customHeight, value);
   };
 
   const handleApply = () => {
     const width = parseInt(customWidth);
     const height = parseInt(customHeight);
     
-    if (validateDimensions(customWidth, customHeight)) {
-      onSizeChange(width, height);
+    if (mode === 'create') {
+      if (validateDimensions(customWidth, customHeight, itemName)) {
+        if (onCreateWithDetails) {
+          // Use the new detailed callback for create mode
+          const finalParentId = selectedFolderId === 'root' ? undefined : selectedFolderId;
+          onCreateWithDetails(width, height, itemName.trim(), finalParentId);
+        } else {
+          // Fallback to the old callback
+          onSizeChange(width, height);
+        }
+      }
+    } else {
+      if (validateDimensions(customWidth, customHeight)) {
+        onSizeChange(width, height);
+      }
     }
   };
 
@@ -134,6 +177,10 @@ export function SizeSelector({
 
   const isValid = Object.keys(errors).length === 0 && customWidth && customHeight;
   const hasChanges = parseInt(customWidth) !== currentWidth || parseInt(customHeight) !== currentHeight;
+  
+  // For create mode, allow apply even without changes (using default values)
+  // For resize mode, only allow apply when there are actual changes
+  const shouldEnableApply = isValid && (mode === 'create' || hasChanges);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -141,9 +188,54 @@ export function SizeSelector({
         <div className="flex items-center mb-4">
           {type === 'sprite' ? <Image size={20} className="mr-2" /> : <Monitor size={20} className="mr-2" />}
           <h3 className="text-lg font-semibold text-white">
-            {type === 'sprite' ? 'Sprite Size' : 'Screen Size'}
+            {mode === 'create' ? `Create ${type === 'sprite' ? 'Sprite' : 'Screen'}` : `${type === 'sprite' ? 'Sprite' : 'Screen'} Size`}
           </h3>
         </div>
+
+        {/* Name and Folder Selection (Create Mode Only) */}
+        {mode === 'create' && (
+          <div className="mb-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Name
+              </label>
+              <input
+                type="text"
+                value={itemName}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className={`w-full bg-gray-700 text-white rounded px-3 py-2 border ${
+                  errors.name ? 'border-red-500' : 'border-gray-600'
+                } focus:border-blue-500 focus:outline-none`}
+                placeholder={`${type === 'sprite' ? 'Sprite' : 'Screen'} name`}
+              />
+              {errors.name && (
+                <p className="text-red-400 text-xs mt-1">{errors.name}</p>
+              )}
+            </div>
+
+            {availableFolders.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <Folder size={14} className="inline mr-1" />
+                  Folder
+                </label>
+                <select
+                  value={selectedFolderId}
+                  onChange={(e) => setSelectedFolderId(e.target.value)}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  title="Select folder"
+                >
+                  <option value="root">Root (No folder)</option>
+                  {availableFolders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Preset Options */}
         <div className="mb-4">
@@ -259,9 +351,9 @@ export function SizeSelector({
           )}
           <button
             onClick={handleApply}
-            disabled={!isValid || !hasChanges}
+            disabled={!shouldEnableApply}
             className={`px-4 py-2 rounded flex items-center ${
-              isValid && hasChanges
+              shouldEnableApply
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
             }`}

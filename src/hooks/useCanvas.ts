@@ -19,7 +19,9 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
     offsetY: 0,
     showGrid: true,
     tool: 'pencil',
-    eraserSize: 1
+    eraserSize: 1,
+    brushSize: 1,
+    brushStyle: 'square'
   });
   
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -81,11 +83,36 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
     const newPixels = DrawingUtils.clonePixelGrid(pixels);
     
     switch (tool) {
-      case 'pencil':
-        DrawingUtils.setPixelAtPoint(newPixels, point, !isErasing);
-        break;
+      case 'pencil': {
+        // Draw with brush size and style
+        const size = canvasState.brushSize;
+        const style = canvasState.brushStyle;
         
-      case 'eraser':
+        if (size === 1) {
+          DrawingUtils.setPixelAtPoint(newPixels, point, !isErasing);
+        } else {
+          // Apply brush pattern based on style
+          for (let dy = -Math.floor(size / 2); dy <= Math.floor(size / 2); dy++) {
+            for (let dx = -Math.floor(size / 2); dx <= Math.floor(size / 2); dx++) {
+              const targetPoint = { x: point.x + dx, y: point.y + dy };
+              
+              if (style === 'round') {
+                // Round brush: check if point is within circle radius
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= size / 2) {
+                  DrawingUtils.setPixelAtPoint(newPixels, targetPoint, !isErasing);
+                }
+              } else {
+                // Square brush: draw all points in square
+                DrawingUtils.setPixelAtPoint(newPixels, targetPoint, !isErasing);
+              }
+            }
+          }
+        }
+        break;
+      }
+        
+      case 'eraser': {
         // Draw a square eraser
         const size = canvasState.eraserSize;
         for (let dy = -Math.floor(size / 2); dy <= Math.floor(size / 2); dy++) {
@@ -94,6 +121,7 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
           }
         }
         break;
+      }
         
       case 'fill':
         DrawingUtils.floodFill(newPixels, point, !DrawingUtils.getPixelAtPoint(pixels, point));
@@ -101,7 +129,7 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
     }
     
     onPixelsChange(newPixels);
-  }, [pixels, onPixelsChange, canvasState.eraserSize]);
+  }, [pixels, onPixelsChange, canvasState.eraserSize, canvasState.brushSize, canvasState.brushStyle]);
 
   // Handle shape preview
   const updateShapePreview = useCallback((currentPoint: Point) => {
@@ -122,15 +150,17 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
         DrawingUtils.drawRectangle(preview, startPoint, currentPoint, true, true);
         break;
         
-      case 'circle':
+      case 'circle': {
         const radius = Math.sqrt((currentPoint.x - startPoint.x) ** 2 + (currentPoint.y - startPoint.y) ** 2);
         DrawingUtils.drawCircle(preview, startPoint, Math.round(radius), true, false);
         break;
+      }
         
-      case 'filled-circle':
+      case 'filled-circle': {
         const filledRadius = Math.sqrt((currentPoint.x - startPoint.x) ** 2 + (currentPoint.y - startPoint.y) ** 2);
         DrawingUtils.drawCircle(preview, startPoint, Math.round(filledRadius), true, true);
         break;
+      }
         
       case 'invert':
         DrawingUtils.invertPixels(preview, startPoint, currentPoint);
@@ -186,15 +216,17 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
           DrawingUtils.drawRectangle(newPixels, startPoint, point, true, true);
           break;
           
-        case 'circle':
+        case 'circle': {
           const radius = Math.sqrt((point.x - startPoint.x) ** 2 + (point.y - startPoint.y) ** 2);
           DrawingUtils.drawCircle(newPixels, startPoint, Math.round(radius), true, false);
           break;
+        }
           
-        case 'filled-circle':
+        case 'filled-circle': {
           const filledRadius = Math.sqrt((point.x - startPoint.x) ** 2 + (point.y - startPoint.y) ** 2);
           DrawingUtils.drawCircle(newPixels, startPoint, Math.round(filledRadius), true, true);
           break;
+        }
           
         case 'invert':
           DrawingUtils.invertPixels(newPixels, startPoint, point);

@@ -74,13 +74,19 @@ export function PreviewWindow({ sprite }: PreviewWindowProps) {
   return (
     <div className="w-80 bg-gray-800 border-l border-gray-700 p-4">
       <h3 className="text-white font-semibold mb-4">Preview</h3>
-      
+
       {/* Sprite Info */}
       <div className="mb-4 text-sm text-gray-300">
-        <p><strong>Name:</strong> {sprite.name}</p>
-        <p><strong>Size:</strong> {sprite.width} × {sprite.height}</p>
+        <p>
+          <strong>Name:</strong> {sprite.name}
+        </p>
+        <p>
+          <strong>Size:</strong> {sprite.width} × {sprite.height}
+        </p>
         {isAnimation && (
-          <p><strong>Frames:</strong> {sprite.frames!.length}</p>
+          <p>
+            <strong>Frames:</strong> {sprite.frames!.length}
+          </p>
         )}
       </div>
 
@@ -90,16 +96,17 @@ export function PreviewWindow({ sprite }: PreviewWindowProps) {
           <canvas
             ref={canvasRef}
             className="border border-gray-300"
-            style={{ 
-              imageRendering: 'pixelated',
-              transform: 'scale(2)', // 2x scale for better visibility
-              transformOrigin: 'top left',
-              width: sprite.width,
-              height: sprite.height
+            style={{
+              imageRendering: "pixelated",
+              transformOrigin: "top left",
+              width: sprite.width * 2, // 2x scale for visibility
+              height: sprite.height * 2, // 2x scale for visibility
             }}
           />
         </div>
-        <p className="text-xs text-gray-500 mt-2">Actual size (2x scale for visibility)</p>
+        <p className="text-xs text-gray-500 mt-2">
+          Actual size (2x scale for visibility)
+        </p>
       </div>
 
       {/* Animation Controls */}
@@ -113,15 +120,15 @@ export function PreviewWindow({ sprite }: PreviewWindowProps) {
             >
               <SkipBack size={16} />
             </button>
-            
+
             <button
               onClick={() => setIsPlaying(!isPlaying)}
               className="p-2 hover:bg-gray-700 rounded text-gray-300"
-              title={isPlaying ? 'Pause' : 'Play'}
+              title={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? <Pause size={16} /> : <Play size={16} />}
             </button>
-            
+
             <button
               onClick={() => setCurrentFrame(sprite.frames!.length - 1)}
               className="p-1 hover:bg-gray-700 rounded text-gray-300"
@@ -155,7 +162,10 @@ export function PreviewWindow({ sprite }: PreviewWindowProps) {
           <div className="flex justify-center space-x-2">
             <button
               onClick={() => {
-                const prev = currentFrame > 0 ? currentFrame - 1 : sprite.frames!.length - 1;
+                const prev =
+                  currentFrame > 0
+                    ? currentFrame - 1
+                    : sprite.frames!.length - 1;
                 setCurrentFrame(prev);
               }}
               className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300"
@@ -180,19 +190,26 @@ export function PreviewWindow({ sprite }: PreviewWindowProps) {
         <h4 className="text-sm font-semibold text-gray-300 mb-2">Statistics</h4>
         <div className="text-xs text-gray-400 space-y-1">
           {(() => {
-            const pixels = sprite.isAnimation && sprite.frames && sprite.frames[currentFrame] 
-              ? sprite.frames[currentFrame].pixels 
-              : sprite.pixels;
-            
+            const pixels =
+              sprite.isAnimation && sprite.frames && sprite.frames[currentFrame]
+                ? sprite.frames[currentFrame].pixels
+                : sprite.pixels;
+
             const totalPixels = sprite.width * sprite.height;
-            const blackPixels = pixels.flat().filter(p => p).length;
+            const blackPixels = pixels.flat().filter((p) => p).length;
             const whitePixels = totalPixels - blackPixels;
-            
+
             return (
               <>
                 <p>Total: {totalPixels} pixels</p>
-                <p>Black: {blackPixels} ({Math.round(blackPixels / totalPixels * 100)}%)</p>
-                <p>White: {whitePixels} ({Math.round(whitePixels / totalPixels * 100)}%)</p>
+                <p>
+                  Black: {blackPixels} (
+                  {Math.round((blackPixels / totalPixels) * 100)}%)
+                </p>
+                <p>
+                  White: {whitePixels} (
+                  {Math.round((whitePixels / totalPixels) * 100)}%)
+                </p>
               </>
             );
           })()}

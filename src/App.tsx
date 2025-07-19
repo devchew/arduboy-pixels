@@ -9,7 +9,7 @@ import { PreviewWindow } from './components/PreviewWindow';
 import { ExportDialog } from './components/ExportDialog';
 import { useProject } from './hooks/useProject';
 import { useCanvas } from './hooks/useCanvas';
-import { DrawingTool } from './types';
+import { DrawingTool, BrushStyle } from './types';
 
 function App() {
   const {
@@ -30,14 +30,17 @@ function App() {
     updateActiveSprite,
     exportProjectData,
     importProjectData,
-    newProject
+    newProject,
+    moveItem
   } = useProject();
 
   const [canvasSettings, setCanvasSettings] = useState({
     zoom: 8,
     showGrid: true,
     tool: 'pencil' as DrawingTool,
-    eraserSize: 1
+    eraserSize: 1,
+    brushSize: 1,
+    brushStyle: 'square' as BrushStyle
   });
 
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -76,6 +79,19 @@ function App() {
   const handleItemCreateWithSize = useCallback((type: 'sprite' | 'screen', width: number, height: number, parentId?: string) => {
     addItemWithSize(type, width, height, parentId);
   }, [addItemWithSize]);
+
+  const handleItemCreateWithDetails = useCallback((type: 'sprite' | 'screen', width: number, height: number, name: string, parentId?: string) => {
+    let item;
+    if (type === 'sprite') {
+      item = createSpriteWithSize(name, width, height, parentId);
+    } else {
+      item = createScreenWithSize(name, width, height, parentId);
+    }
+    addItem(item);
+    if (item.spriteData) {
+      setActiveItemById(item.id);
+    }
+  }, [createSpriteWithSize, createScreenWithSize, addItem, setActiveItemById]);
   const handleItemRename = useCallback((itemId: string, name: string) => {
     updateItem(itemId, { name });
     const item = project.items.find(i => i.id === itemId);
@@ -200,10 +216,12 @@ function App() {
           onItemSelect={setActiveItemById}
           onItemCreate={handleItemCreate}
           onItemCreateWithSize={handleItemCreateWithSize}
+          onItemCreateWithDetails={handleItemCreateWithDetails}
           onItemDelete={deleteItem}
           onItemDuplicate={duplicateItem}
           onItemRename={handleItemRename}
           onItemResize={handleItemResize}
+          onItemMove={moveItem}
         />
 
         {/* Main Content */}
@@ -220,6 +238,10 @@ function App() {
                 onToggleGrid={() => setCanvasSettings(prev => ({ ...prev, showGrid: !prev.showGrid }))}
                 eraserSize={canvasSettings.eraserSize}
                 onEraserSizeChange={(size) => setCanvasSettings(prev => ({ ...prev, eraserSize: size }))}
+                brushSize={canvasSettings.brushSize}
+                onBrushSizeChange={(size) => setCanvasSettings(prev => ({ ...prev, brushSize: size }))}
+                brushStyle={canvasSettings.brushStyle}
+                onBrushStyleChange={(style) => setCanvasSettings(prev => ({ ...prev, brushStyle: style }))}
                 canUndo={canvasHook.canUndo}
                 canRedo={canvasHook.canRedo}
                 onUndo={canvasHook.undo}
@@ -236,6 +258,8 @@ function App() {
                 zoom={canvasSettings.zoom}
                 showGrid={canvasSettings.showGrid}
                 eraserSize={canvasSettings.eraserSize}
+                brushSize={canvasSettings.brushSize}
+                brushStyle={canvasSettings.brushStyle}
                 onUndo={canvasHook.undo}
                 onRedo={canvasHook.redo}
                 onToolChange={(tool) => setCanvasSettings(prev => ({ ...prev, tool: tool as DrawingTool }))}

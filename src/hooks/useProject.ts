@@ -240,6 +240,30 @@ export function useProject() {
     setActiveItem(null);
   }, []);
 
+  const moveItem = useCallback((itemId: string, newParentId?: string) => {
+    setProject(prev => {
+      // Find the item to move
+      const itemToMove = findItemById(prev.items, itemId);
+      if (!itemToMove) return prev;
+
+      // Remove item from its current location
+      const itemsWithoutMoved = removeItemFromTree(prev.items, itemId);
+      
+      // Update the item's parentId
+      const updatedItem = { ...itemToMove, parentId: newParentId };
+      
+      // Add item to new location
+      const newItems = addItemToTree(itemsWithoutMoved, updatedItem, newParentId);
+      
+      return {
+        ...prev,
+        items: newItems,
+        isModified: true
+      };
+    });
+    markAsModified();
+  }, [markAsModified]);
+
   return {
     project,
     activeItem,
@@ -254,6 +278,7 @@ export function useProject() {
     resizeItem,
     deleteItem,
     duplicateItem,
+    moveItem,
     setActiveItemById,
     updateActiveSprite,
     exportProjectData,
@@ -311,5 +336,28 @@ function removeItemFromTree(items: ProjectItem[], id: string): ProjectItem[] {
       item.children = removeItemFromTree(item.children, id);
     }
     return true;
+  });
+}
+
+function addItemToTree(items: ProjectItem[], itemToAdd: ProjectItem, parentId?: string): ProjectItem[] {
+  if (!parentId) {
+    // Add to root level
+    return [...items, itemToAdd];
+  }
+  
+  return items.map(item => {
+    if (item.id === parentId && item.type === 'folder') {
+      return {
+        ...item,
+        children: [...(item.children || []), itemToAdd]
+      };
+    }
+    if (item.children) {
+      return {
+        ...item,
+        children: addItemToTree(item.children, itemToAdd, parentId)
+      };
+    }
+    return item;
   });
 }

@@ -6,11 +6,9 @@ import {
   FolderOpen, 
   Image, 
   Monitor, 
-  Plus, 
   Trash2, 
   Copy, 
   Edit3,
-  MoreVertical,
   Settings
 } from 'lucide-react';
 import { ProjectItem } from '../types';
@@ -22,10 +20,12 @@ interface FileExplorerProps {
   onItemSelect: (id: string) => void;
   onItemCreate: (type: 'sprite' | 'screen' | 'folder', parentId?: string) => void;
   onItemCreateWithSize: (type: 'sprite' | 'screen', width: number, height: number, parentId?: string) => void;
+  onItemCreateWithDetails: (type: 'sprite' | 'screen', width: number, height: number, name: string, parentId?: string) => void;
   onItemDelete: (id: string) => void;
   onItemDuplicate: (id: string) => void;
   onItemRename: (id: string, name: string) => void;
   onItemResize: (id: string, width: number, height: number) => void;
+  onItemMove: (itemId: string, newParentId?: string) => void;
 }
 
 export function FileExplorer({
@@ -34,14 +34,19 @@ export function FileExplorer({
   onItemSelect,
   onItemCreate,
   onItemCreateWithSize,
+  onItemCreateWithDetails,
   onItemDelete,
   onItemDuplicate,
   onItemRename,
-  onItemResize
+  onItemResize,
+  onItemMove
 }: FileExplorerProps) {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [renamingItem, setRenamingItem] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<'above' | 'below' | 'inside' | null>(null);
   const [sizeSelector, setSizeSelector] = useState<{
     isOpen: boolean;
     type: 'sprite' | 'screen';
@@ -118,6 +123,106 @@ export function FileExplorer({
     setSizeSelector(null);
   }, [sizeSelector, onItemCreateWithSize, onItemResize]);
 
+  const handleCreateWithDetails = useCallback((width: number, height: number, name: string, parentId?: string) => {
+    if (!sizeSelector) return;
+    
+    onItemCreateWithDetails(sizeSelector.type, width, height, name, parentId);
+    setSizeSelector(null);
+  }, [sizeSelector, onItemCreateWithDetails]);
+
+  const getAvailableFolders = useCallback((): ProjectItem[] => {
+    const collectFolders = (items: ProjectItem[]): ProjectItem[] => {
+      let folders: ProjectItem[] = [];
+      for (const item of items) {
+        if (item.type === 'folder') {
+          folders.push(item);
+          if (item.children) {
+            folders = folders.concat(collectFolders(item.children));
+          }
+        }
+      }
+      return folders;
+    };
+    return collectFolders(items);
+  }, [items]);
+
+  // Drag and drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent, itemId: string) => {
+    setDraggedItem(itemId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', itemId);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, itemId: string, position: 'above' | 'below' | 'inside') => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverItem(itemId);
+    setDragOverPosition(position);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverItem(null);
+    setDragOverPosition(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetItemId: string, position: 'above' | 'below' | 'inside') => {
+    e.preventDefault();
+    const sourceItemId = e.dataTransfer.getData('text/plain');
+    
+    if (sourceItemId === targetItemId) return;
+    
+    // Prevent dropping an item into its own children
+    const isDescendant = (parentId: string, childId: string): boolean => {
+      const findItem = (items: ProjectItem[], id: string): ProjectItem | null => {
+        for (const item of items) {
+          if (item.id === id) return item;
+          if (item.children) {
+            const found = findItem(item.children, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      
+      const parent = findItem(items, parentId);
+      if (!parent || !parent.children) return false;
+      
+      const checkChildren = (children: ProjectItem[]): boolean => {
+        for (const child of children) {
+          if (child.id === childId) return true;
+          if (child.children && checkChildren(child.children)) return true;
+        }
+        return false;
+      };
+      
+      return checkChildren(parent.children);
+    };
+
+    const targetItem = items.find(item => item.id === targetItemId);
+    if (!targetItem) return;
+
+    let newParentId: string | undefined;
+    
+    if (position === 'inside' && targetItem.type === 'folder') {
+      if (isDescendant(targetItemId, sourceItemId)) return;
+      newParentId = targetItemId;
+    } else {
+      newParentId = targetItem.parentId;
+    }
+
+    onItemMove(sourceItemId, newParentId);
+    
+    setDraggedItem(null);
+    setDragOverItem(null);
+    setDragOverPosition(null);
+  }, [items, onItemMove]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedItem(null);
+    setDragOverItem(null);
+    setDragOverPosition(null);
+  }, []);
+
   const handleSizeCancel = useCallback(() => {
     setSizeSelector(null);
   }, []);
@@ -125,6 +230,8 @@ export function FileExplorer({
     const isExpanded = expandedItems.has(item.id);
     const isActive = item.id === activeItemId;
     const isRenaming = renamingItem === item.id;
+    const isDragging = draggedItem === item.id;
+    const isDragOver = dragOverItem === item.id;
 
     const getIcon = () => {
       switch (item.type) {
@@ -137,13 +244,91 @@ export function FileExplorer({
       }
     };
 
-    return (
-      <div key={item.id}>
+    // Visual nesting indicators
+    const renderNestingLines = () => {
+      if (depth === 0) return null;
+      
+      const lines = [];
+      for (let i = 0; i < depth; i++) {
+        lines.push(
+          <div
+            key={i}
+            className="absolute border-l border-gray-600"
+            style={{
+              left: `${i * 16 + 16}px`,
+              top: 0,
+              bottom: 0,
+              width: '1px'
+            }}
+          />
+        );
+      }
+      
+      // Horizontal connector line
+      lines.push(
         <div
-          className={`flex items-center px-2 py-1 text-sm cursor-pointer hover:bg-gray-700 ${
+          key="connector"
+          className="absolute border-l border-b border-gray-600"
+          style={{
+            left: `${(depth - 1) * 16 + 16}px`,
+            top: '50%',
+            width: '12px',
+            height: '1px',
+            borderTopWidth: 0,
+            borderRightWidth: 0
+          }}
+        />
+      );
+
+      return lines;
+    };
+
+    const handleItemDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const height = rect.height;
+      
+      let position: 'above' | 'below' | 'inside';
+      if (item.type === 'folder' && y > height * 0.25 && y < height * 0.75) {
+        position = 'inside';
+      } else if (y < height * 0.5) {
+        position = 'above';
+      } else {
+        position = 'below';
+      }
+      
+      handleDragOver(e, item.id, position);
+    };
+
+    return (
+      <div key={item.id} className="relative">
+        {/* Nesting visual indicators */}
+        {renderNestingLines()}
+        
+        {/* Drop indicator */}
+        {isDragOver && dragOverPosition === 'above' && (
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500 z-10" />
+        )}
+        {isDragOver && dragOverPosition === 'below' && (
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 z-10" />
+        )}
+        
+        <div
+          className={`flex items-center px-2 py-1 text-sm cursor-pointer transition-colors relative ${
             isActive ? 'bg-blue-600 text-white' : 'text-gray-300'
+          } ${
+            isDragging ? 'opacity-50' : 'hover:bg-gray-700'
+          } ${
+            isDragOver && dragOverPosition === 'inside' ? 'bg-blue-500/20 border border-blue-500' : ''
           }`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          draggable
+          onDragStart={(e) => handleDragStart(e, item.id)}
+          onDragOver={handleItemDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, item.id, dragOverPosition || 'inside')}
+          onDragEnd={handleDragEnd}
           onClick={() => {
             if (item.type === 'folder') {
               toggleExpanded(item.id);
@@ -305,6 +490,11 @@ export function FileExplorer({
           onSizeChange={handleSizeChange}
           onCancel={handleSizeCancel}
           isOpen={sizeSelector.isOpen}
+          mode={sizeSelector.mode}
+          onCreateWithDetails={sizeSelector.mode === 'create' ? handleCreateWithDetails : undefined}
+          defaultName={sizeSelector.mode === 'create' ? `New ${sizeSelector.type === 'sprite' ? 'Sprite' : 'Screen'}` : undefined}
+          parentId={sizeSelector.parentId}
+          availableFolders={sizeSelector.mode === 'create' ? getAvailableFolders() : []}
         />
       )}
     </>

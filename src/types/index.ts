@@ -51,6 +51,8 @@ export type DrawingTool =
   | 'filled-circle'
   | 'invert';
 
+export type BrushStyle = 'square' | 'round';
+
 export interface CanvasState {
   zoom: number;
   offsetX: number;
@@ -58,6 +60,8 @@ export interface CanvasState {
   showGrid: boolean;
   tool: DrawingTool;
   eraserSize: number;
+  brushSize: number;
+  brushStyle: BrushStyle;
 }
 
 export interface HistoryState {

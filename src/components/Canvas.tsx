@@ -1,7 +1,8 @@
 // Main drawing canvas component
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCanvas } from '../hooks/useCanvas';
+import { Point } from '../types';
 
 interface CanvasProps {
   pixels: boolean[][];
@@ -12,6 +13,8 @@ interface CanvasProps {
   zoom: number;
   showGrid: boolean;
   eraserSize: number;
+  brushSize: number;
+  brushStyle: string;
   onUndo: () => void;
   onRedo: () => void;
   onToolChange: (tool: string) => void;
@@ -27,15 +30,18 @@ export function Canvas({
   zoom,
   showGrid,
   eraserSize,
+  brushSize,
+  brushStyle,
   onUndo,
   onRedo,
   onToolChange,
   onToggleGrid
 }: CanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [mousePosition, setMousePosition] = useState<Point | null>(null);
   
   const {
+    canvasRef,
     canvasState,
     setCanvasState,
     previewPixels,
@@ -56,17 +62,13 @@ export function Canvas({
       tool: tool as any,
       zoom,
       showGrid,
-      eraserSize
+      eraserSize,
+      brushSize,
+      brushStyle: brushStyle as any
     }));
-  }, [tool, zoom, showGrid, eraserSize, setCanvasState]);
+  }, [tool, zoom, showGrid, eraserSize, brushSize, brushStyle, setCanvasState]);
 
-  // Update canvas ref in the hook
-  useEffect(() => {
-    if (canvasRef.current) {
-      // Ensure the canvas hook has access to the canvas ref
-      Object.assign(canvasHook.canvasRef, { current: canvasRef.current });
-    }
-  }, [canvasHook.canvasRef]);
+
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -148,6 +150,50 @@ export function Canvas({
       }
     }
 
+    // Draw brush preview
+    if (mousePosition && (tool === 'pencil' || tool === 'eraser')) {
+      const size = tool === 'pencil' ? brushSize : eraserSize;
+      const style = tool === 'pencil' ? brushStyle : 'square';
+      
+      ctx.strokeStyle = tool === 'pencil' ? '#0000ff' : '#ff0000';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.7;
+
+      if (size === 1) {
+        // Single pixel preview
+        ctx.strokeRect(
+          mousePosition.x * zoom,
+          mousePosition.y * zoom,
+          zoom,
+          zoom
+        );
+      } else {
+        // Multi-pixel brush preview
+        for (let dy = -Math.floor(size / 2); dy <= Math.floor(size / 2); dy++) {
+          for (let dx = -Math.floor(size / 2); dx <= Math.floor(size / 2); dx++) {
+            const x = mousePosition.x + dx;
+            const y = mousePosition.y + dy;
+            
+            // Check bounds
+            if (x >= 0 && x < width && y >= 0 && y < height) {
+              if (style === 'round') {
+                // Round brush: check if point is within circle radius
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= size / 2) {
+                  ctx.strokeRect(x * zoom, y * zoom, zoom, zoom);
+                }
+              } else {
+                // Square brush
+                ctx.strokeRect(x * zoom, y * zoom, zoom, zoom);
+              }
+            }
+          }
+        }
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
     // Draw grid
     if (showGrid && zoom >= 4) {
       ctx.strokeStyle = '#cccccc';
@@ -172,11 +218,31 @@ export function Canvas({
 
       ctx.globalAlpha = 1;
     }
-  }, [pixels, previewPixels, width, height, zoom, showGrid]);
+  }, [pixels, previewPixels, width, height, zoom, showGrid, canvasRef, mousePosition, tool, brushSize, brushStyle, eraserSize]);
 
   // Handle mouse leave to stop drawing
   const handleMouseLeave = () => {
-    // Reset any drawing state when mouse leaves canvas
+    setMousePosition(null);
+  };
+
+  // Track mouse position for brush preview
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const pixelX = Math.floor((e.clientX - rect.left) / zoom);
+    const pixelY = Math.floor((e.clientY - rect.top) / zoom);
+    
+    // Only show preview for pencil and eraser tools
+    if (tool === 'pencil' || tool === 'eraser') {
+      setMousePosition({ x: pixelX, y: pixelY });
+    } else {
+      setMousePosition(null);
+    }
+    
+    // Call the original mouse move handler
+    handleMouseMove(e);
   };
 
   return (
@@ -187,7 +253,7 @@ export function Canvas({
             ref={canvasRef}
             className="cursor-crosshair border border-gray-300"
             onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
+            onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
             style={{ imageRendering: 'pixelated' }}
