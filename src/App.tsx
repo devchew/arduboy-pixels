@@ -1,14 +1,15 @@
 // Main application component
 
-import React, { useState, useCallback } from 'react';
-import { Download, Upload, Save, FolderOpen, Settings } from 'lucide-react';
-import { FileExplorer } from './components/FileExplorer';
-import { Toolbar } from './components/Toolbar';
-import { Canvas } from './components/Canvas';
-import { PreviewWindow } from './components/PreviewWindow';
-import { ExportDialog } from './components/ExportDialog';
-import { useProject } from './hooks/useProject';
-import { useCanvas } from './hooks/useCanvas';
+import React, { useState, useCallback, useEffect } from "react";
+import { Download, Upload, Save, FolderOpen, Settings } from "lucide-react";
+import { FileExplorer } from "./components/FileExplorer";
+import { Toolbar } from "./components/Toolbar";
+import { Canvas } from "./components/Canvas";
+import { PreviewWindow } from "./components/PreviewWindow";
+import { ExportDialog } from "./components/ExportDialog";
+import { CompositionEditor } from "./components/CompositionEditor";
+import { useProject } from "./hooks/useProject";
+import { useCanvas } from "./hooks/useCanvas";
 import { DrawingTool, BrushStyle, SpriteData } from "./types";
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
     createSpriteWithSize,
     createScreenWithSize,
     createFolder,
+    createComposition,
     createUniqueItemName,
     addItem,
     addItemWithSize,
@@ -29,12 +31,17 @@ function App() {
     duplicateItem,
     setActiveItemById,
     updateActiveSprite,
+    addLayerToComposition,
+    removeLayerFromComposition,
+    updateCompositionLayer,
+    duplicateCompositionLayer,
     exportProjectData,
     importProjectData,
     newProject,
     moveItem,
   } = useProject();
 
+  const [viewMode, setViewMode] = useState<"sprite" | "composition">("sprite");
   const [canvasSettings, setCanvasSettings] = useState({
     zoom: 8,
     showGrid: true,
@@ -45,6 +52,15 @@ function App() {
   });
 
   const [showExportDialog, setShowExportDialog] = useState(false);
+
+  // Automatically switch view mode based on active item type
+  useEffect(() => {
+    if (activeItem?.spriteData) {
+      setViewMode("sprite");
+    } else if (activeItem?.compositionData) {
+      setViewMode("composition");
+    }
+  }, [activeItem]);
 
   // Canvas hook for undo/redo functionality
   const canvasHook = useCanvas({
@@ -59,7 +75,10 @@ function App() {
   });
 
   const handleItemCreate = useCallback(
-    (type: "sprite" | "screen" | "folder", parentId?: string) => {
+    (
+      type: "sprite" | "screen" | "folder" | "composition",
+      parentId?: string
+    ) => {
       let item;
       switch (type) {
         case "sprite": {
@@ -77,16 +96,29 @@ function App() {
           item = createFolder(folderName, parentId);
           break;
         }
+        case "composition": {
+          const compositionName = createUniqueItemName(
+            "New Composition",
+            parentId
+          );
+          item = createComposition(compositionName, 256, 256, parentId);
+          break;
+        }
       }
       addItem(item);
       if (item.spriteData) {
         setActiveItemById(item.id);
+        // Auto-switch to sprite view removed - will be handled by useEffect
+      } else if (item.compositionData) {
+        setActiveItemById(item.id);
+        // Auto-switch to composition view removed - will be handled by useEffect
       }
     },
     [
       createSprite,
       createScreen,
       createFolder,
+      createComposition,
       createUniqueItemName,
       addItem,
       setActiveItemById,
@@ -217,7 +249,27 @@ function App() {
     return sprites;
   };
 
+  // Get all project items recursively (for composition sprite selection)
+  const getAllProjectItems = (
+    items: typeof project.items
+  ): typeof project.items => {
+    const allItems: typeof project.items = [];
+
+    const collectItems = (itemList: typeof project.items) => {
+      for (const item of itemList) {
+        allItems.push(item);
+        if (item.children) {
+          collectItems(item.children);
+        }
+      }
+    };
+
+    collectItems(items);
+    return allItems;
+  };
+
   const sprites = getAllSprites(project.items);
+  const allProjectItems = getAllProjectItems(project.items);
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col">
@@ -296,7 +348,7 @@ function App() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {activeItem?.spriteData ? (
+          {viewMode === "sprite" && activeItem?.spriteData ? (
             <>
               {/* Toolbar */}
               <Toolbar
@@ -361,6 +413,33 @@ function App() {
                 }
               />
             </>
+          ) : viewMode === "composition" && activeItem?.compositionData ? (
+            <CompositionEditor
+              composition={activeItem.compositionData}
+              sprites={allProjectItems}
+              onCompositionUpdate={(compositionId, updates) => {
+                if (activeItem.compositionData) {
+                  updateItem(compositionId, {
+                    compositionData: {
+                      ...activeItem.compositionData,
+                      ...updates,
+                    },
+                  });
+                }
+              }}
+              onAddLayer={(spriteId, x, y) => {
+                addLayerToComposition(activeItem.id, spriteId, x, y);
+              }}
+              onRemoveLayer={(layerId) => {
+                removeLayerFromComposition(activeItem.id, layerId);
+              }}
+              onUpdateLayer={(layerId, updates) => {
+                updateCompositionLayer(activeItem.id, layerId, updates);
+              }}
+              onDuplicateLayer={(layerId) => {
+                duplicateCompositionLayer(activeItem.id, layerId);
+              }}
+            />
           ) : (
             /* Welcome Screen */
             <div className="flex-1 flex items-center justify-center bg-gray-900">
@@ -385,14 +464,22 @@ function App() {
                   >
                     Create New Screen
                   </button>
+                  <button
+                    onClick={() => handleItemCreate("composition")}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white"
+                  >
+                    Create New Composition
+                  </button>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Preview Window */}
-        <PreviewWindow sprite={activeItem?.spriteData || null} />
+        {/* Preview Window - only show in sprite mode */}
+        {viewMode === "sprite" && (
+          <PreviewWindow sprite={activeItem?.spriteData || null} />
+        )}
       </div>
 
       {/* Export Dialog */}

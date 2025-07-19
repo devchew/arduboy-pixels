@@ -24,11 +24,31 @@ export interface SpriteFrame {
 export interface ProjectItem {
   id: string;
   name: string;
-  type: 'sprite' | 'screen' | 'folder';
+  type: "sprite" | "screen" | "folder" | "composition";
   parentId?: string;
   children?: ProjectItem[];
   spriteData?: SpriteData;
+  compositionData?: CompositionData;
   isExpanded?: boolean;
+}
+
+export interface CompositionLayer {
+  id: string;
+  spriteId: string; // Reference to a sprite or screen in the project
+  x: number;
+  y: number;
+  zIndex: number; // Layer order, higher = on top
+  visible: boolean;
+  opacity?: number; // For future use
+}
+
+export interface CompositionData {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  layers: CompositionLayer[];
+  backgroundColor: "transparent" | "black" | "white";
 }
 
 export interface Project {
