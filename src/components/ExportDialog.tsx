@@ -1,9 +1,9 @@
 // Export dialog component for generating Arduboy-compatible code
 
-import React, { useState } from 'react';
-import { X, Download, Copy, FileText } from 'lucide-react';
-import { SpriteData, ExportOptions } from '../types';
-import { exportSprite, exportProject, generateMetadata } from '../utils/export';
+import React, { useState, useEffect } from "react";
+import { X, Download, Copy, FileText } from "lucide-react";
+import { SpriteData, ExportOptions } from "../types";
+import { exportSprite, exportProject, generateMetadata } from "../utils/export";
 
 interface ExportDialogProps {
   isOpen: boolean;
@@ -13,34 +13,54 @@ interface ExportDialogProps {
   projectName: string;
 }
 
-export function ExportDialog({ 
-  isOpen, 
-  onClose, 
-  sprites, 
-  activeSprite, 
-  projectName 
+export function ExportDialog({
+  isOpen,
+  onClose,
+  sprites,
+  activeSprite,
+  projectName,
 }: ExportDialogProps) {
-  const [exportMode, setExportMode] = useState<'single' | 'project'>('single');
+  // Default to 'project' mode if there's no active sprite but there are sprites available
+  const defaultMode = activeSprite
+    ? "single"
+    : sprites.length > 0
+    ? "project"
+    : "single";
+  const [exportMode, setExportMode] = useState<"single" | "project">(
+    defaultMode
+  );
   const [options, setOptions] = useState<ExportOptions>({
-    format: 'progmem',
+    format: "progmem",
     includeDimensions: true,
     includeFrameCount: true,
-    variableName: activeSprite ? activeSprite.name.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'sprite',
-    compress: false
+    variableName: activeSprite
+      ? activeSprite.name.toLowerCase().replace(/[^a-z0-9]/g, "_")
+      : "sprite",
+    compress: false,
   });
-  const [generatedCode, setGeneratedCode] = useState('');
+  const [generatedCode, setGeneratedCode] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
+  // Update export mode when props change
+  useEffect(() => {
+    const defaultMode = activeSprite
+      ? "single"
+      : sprites.length > 0
+      ? "project"
+      : "single";
+    setExportMode(defaultMode);
+  }, [activeSprite, sprites.length]);
+
   const handleGenerate = () => {
-    let code = '';
-    
-    if (exportMode === 'single' && activeSprite) {
+    let code = "";
+
+    if (exportMode === "single" && activeSprite) {
       code = exportSprite(activeSprite, options);
-    } else if (exportMode === 'project') {
+    } else if (exportMode === "project") {
       code = exportProject(sprites, projectName);
-      code += '\n\n' + generateMetadata(sprites);
+      code += "\n\n" + generateMetadata(sprites);
     }
-    
+
     setGeneratedCode(code);
     setShowPreview(true);
   };
@@ -50,18 +70,19 @@ export function ExportDialog({
       await navigator.clipboard.writeText(generatedCode);
       // Could add a toast notification here
     } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
+      console.error("Failed to copy to clipboard:", err);
     }
   };
 
   const handleDownload = () => {
-    const filename = exportMode === 'single' 
-      ? `${options.variableName}.h`
-      : `${projectName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_sprites.h`;
-      
-    const blob = new Blob([generatedCode], { type: 'text/plain' });
+    const filename =
+      exportMode === "single"
+        ? `${options.variableName}.h`
+        : `${projectName.toLowerCase().replace(/[^a-z0-9]/g, "_")}_sprites.h`;
+
+    const blob = new Blob([generatedCode], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -77,10 +98,7 @@ export function ExportDialog({
       <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Export Sprites</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X size={20} />
           </button>
         </div>
@@ -98,8 +116,8 @@ export function ExportDialog({
                   <input
                     type="radio"
                     value="single"
-                    checked={exportMode === 'single'}
-                    onChange={(e) => setExportMode(e.target.value as 'single')}
+                    checked={exportMode === "single"}
+                    onChange={(e) => setExportMode(e.target.value as "single")}
                     className="mr-2"
                     disabled={!activeSprite}
                   />
@@ -109,8 +127,8 @@ export function ExportDialog({
                   <input
                     type="radio"
                     value="project"
-                    checked={exportMode === 'project'}
-                    onChange={(e) => setExportMode(e.target.value as 'project')}
+                    checked={exportMode === "project"}
+                    onChange={(e) => setExportMode(e.target.value as "project")}
                     className="mr-2"
                     disabled={sprites.length === 0}
                   />
@@ -120,7 +138,7 @@ export function ExportDialog({
             </div>
 
             {/* Single Sprite Options */}
-            {exportMode === 'single' && activeSprite && (
+            {exportMode === "single" && activeSprite && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -128,7 +146,12 @@ export function ExportDialog({
                   </label>
                   <select
                     value={options.format}
-                    onChange={(e) => setOptions(prev => ({ ...prev, format: e.target.value as any }))}
+                    onChange={(e) =>
+                      setOptions((prev) => ({
+                        ...prev,
+                        format: e.target.value as any,
+                      }))
+                    }
                     className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
                   >
                     <option value="progmem">PROGMEM (Flash Storage)</option>
@@ -144,7 +167,12 @@ export function ExportDialog({
                   <input
                     type="text"
                     value={options.variableName}
-                    onChange={(e) => setOptions(prev => ({ ...prev, variableName: e.target.value }))}
+                    onChange={(e) =>
+                      setOptions((prev) => ({
+                        ...prev,
+                        variableName: e.target.value,
+                      }))
+                    }
                     className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
                     placeholder="sprite_name"
                   />
@@ -155,18 +183,28 @@ export function ExportDialog({
                     <input
                       type="checkbox"
                       checked={options.includeDimensions}
-                      onChange={(e) => setOptions(prev => ({ ...prev, includeDimensions: e.target.checked }))}
+                      onChange={(e) =>
+                        setOptions((prev) => ({
+                          ...prev,
+                          includeDimensions: e.target.checked,
+                        }))
+                      }
                       className="mr-2"
                     />
                     <span className="text-gray-300">Include Dimensions</span>
                   </label>
-                  
+
                   {activeSprite.isAnimation && (
                     <label className="flex items-center">
                       <input
                         type="checkbox"
                         checked={options.includeFrameCount}
-                        onChange={(e) => setOptions(prev => ({ ...prev, includeFrameCount: e.target.checked }))}
+                        onChange={(e) =>
+                          setOptions((prev) => ({
+                            ...prev,
+                            includeFrameCount: e.target.checked,
+                          }))
+                        }
                         className="mr-2"
                       />
                       <span className="text-gray-300">Include Frame Count</span>
@@ -179,7 +217,7 @@ export function ExportDialog({
             {/* Generate Button */}
             <button
               onClick={handleGenerate}
-              disabled={!activeSprite && exportMode === 'single'}
+              disabled={!activeSprite && exportMode === "single"}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-2 px-4 rounded flex items-center justify-center"
             >
               <FileText size={16} className="mr-2" />
@@ -189,10 +227,12 @@ export function ExportDialog({
             {/* Info Panel */}
             <div className="bg-gray-700 rounded p-3 text-sm text-gray-300">
               <h4 className="font-semibold mb-2">Export Info</h4>
-              {exportMode === 'single' && activeSprite ? (
+              {exportMode === "single" && activeSprite ? (
                 <div className="space-y-1">
                   <p>Sprite: {activeSprite.name}</p>
-                  <p>Size: {activeSprite.width} × {activeSprite.height}</p>
+                  <p>
+                    Size: {activeSprite.width} × {activeSprite.height}
+                  </p>
                   {activeSprite.isAnimation && (
                     <p>Frames: {activeSprite.frames?.length || 0}</p>
                   )}
@@ -200,8 +240,16 @@ export function ExportDialog({
               ) : (
                 <div className="space-y-1">
                   <p>Total Sprites: {sprites.length}</p>
-                  <p>Screens: {sprites.filter(s => s.width === 128 && s.height === 64).length}</p>
-                  <p>Animations: {sprites.filter(s => s.isAnimation).length}</p>
+                  <p>
+                    Screens:{" "}
+                    {
+                      sprites.filter((s) => s.width === 128 && s.height === 64)
+                        .length
+                    }
+                  </p>
+                  <p>
+                    Animations: {sprites.filter((s) => s.isAnimation).length}
+                  </p>
                 </div>
               )}
             </div>
@@ -212,7 +260,9 @@ export function ExportDialog({
             {showPreview ? (
               <>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-medium text-white">Generated Code</h3>
+                  <h3 className="text-lg font-medium text-white">
+                    Generated Code
+                  </h3>
                   <div className="flex space-x-2">
                     <button
                       onClick={handleCopyToClipboard}

@@ -9,7 +9,7 @@ import { PreviewWindow } from './components/PreviewWindow';
 import { ExportDialog } from './components/ExportDialog';
 import { useProject } from './hooks/useProject';
 import { useCanvas } from './hooks/useCanvas';
-import { DrawingTool, BrushStyle } from './types';
+import { DrawingTool, BrushStyle, SpriteData } from "./types";
 
 function App() {
   const {
@@ -31,16 +31,16 @@ function App() {
     exportProjectData,
     importProjectData,
     newProject,
-    moveItem
+    moveItem,
   } = useProject();
 
   const [canvasSettings, setCanvasSettings] = useState({
     zoom: 8,
     showGrid: true,
-    tool: 'pencil' as DrawingTool,
+    tool: "pencil" as DrawingTool,
     eraserSize: 1,
     brushSize: 1,
-    brushStyle: 'square' as BrushStyle
+    brushStyle: "square" as BrushStyle,
   });
 
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -54,62 +54,88 @@ function App() {
       }
     },
     width: activeItem?.spriteData?.width || 128,
-    height: activeItem?.spriteData?.height || 64
+    height: activeItem?.spriteData?.height || 64,
   });
 
-  const handleItemCreate = useCallback((type: 'sprite' | 'screen' | 'folder', parentId?: string) => {
-    let item;
-    switch (type) {
-      case 'sprite':
-        item = createSprite('New Sprite', 8, 8, parentId);
-        break;
-      case 'screen':
-        item = createScreen('New Screen', parentId);
-        break;
-      case 'folder':
-        item = createFolder('New Folder', parentId);
-        break;
-    }
-    addItem(item);
-    if (item.spriteData) {
-      setActiveItemById(item.id);
-    }
-  }, [createSprite, createScreen, createFolder, addItem, setActiveItemById]);
+  const handleItemCreate = useCallback(
+    (type: "sprite" | "screen" | "folder", parentId?: string) => {
+      let item;
+      switch (type) {
+        case "sprite":
+          item = createSprite("New Sprite", 8, 8, parentId);
+          break;
+        case "screen":
+          item = createScreen("New Screen", parentId);
+          break;
+        case "folder":
+          item = createFolder("New Folder", parentId);
+          break;
+      }
+      addItem(item);
+      if (item.spriteData) {
+        setActiveItemById(item.id);
+      }
+    },
+    [createSprite, createScreen, createFolder, addItem, setActiveItemById]
+  );
 
-  const handleItemCreateWithSize = useCallback((type: 'sprite' | 'screen', width: number, height: number, parentId?: string) => {
-    addItemWithSize(type, width, height, parentId);
-  }, [addItemWithSize]);
+  const handleItemCreateWithSize = useCallback(
+    (
+      type: "sprite" | "screen",
+      width: number,
+      height: number,
+      parentId?: string
+    ) => {
+      addItemWithSize(type, width, height, parentId);
+    },
+    [addItemWithSize]
+  );
 
-  const handleItemCreateWithDetails = useCallback((type: 'sprite' | 'screen', width: number, height: number, name: string, parentId?: string) => {
-    let item;
-    if (type === 'sprite') {
-      item = createSpriteWithSize(name, width, height, parentId);
-    } else {
-      item = createScreenWithSize(name, width, height, parentId);
-    }
-    addItem(item);
-    if (item.spriteData) {
-      setActiveItemById(item.id);
-    }
-  }, [createSpriteWithSize, createScreenWithSize, addItem, setActiveItemById]);
-  const handleItemRename = useCallback((itemId: string, name: string) => {
-    updateItem(itemId, { name });
-    const item = project.items.find(i => i.id === itemId);
-    if (item?.spriteData) {
-      updateItem(itemId, { 
-        spriteData: { ...item.spriteData, name }
-      });
-    }
-  }, [updateItem, project.items]);
+  const handleItemCreateWithDetails = useCallback(
+    (
+      type: "sprite" | "screen",
+      width: number,
+      height: number,
+      name: string,
+      parentId?: string
+    ) => {
+      let item;
+      if (type === "sprite") {
+        item = createSpriteWithSize(name, width, height, parentId);
+      } else {
+        item = createScreenWithSize(name, width, height, parentId);
+      }
+      addItem(item);
+      if (item.spriteData) {
+        setActiveItemById(item.id);
+      }
+    },
+    [createSpriteWithSize, createScreenWithSize, addItem, setActiveItemById]
+  );
+  const handleItemRename = useCallback(
+    (itemId: string, name: string) => {
+      updateItem(itemId, { name });
+      const item = project.items.find((i) => i.id === itemId);
+      if (item?.spriteData) {
+        updateItem(itemId, {
+          spriteData: { ...item.spriteData, name },
+        });
+      }
+    },
+    [updateItem, project.items]
+  );
 
-  const handleItemResize = useCallback((itemId: string, width: number, height: number) => {
-    resizeItem(itemId, width, height);
-  }, [resizeItem]);
+  const handleItemResize = useCallback(
+    (itemId: string, width: number, height: number) => {
+      resizeItem(itemId, width, height);
+    },
+    [resizeItem]
+  );
   const handleProjectExport = useCallback(() => {
     const data = exportProjectData();
-    const blob = new Blob([data], { type: 'application/json' });
+    const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `${project.name}.json`;
     document.body.appendChild(a);
@@ -119,9 +145,9 @@ function App() {
   }, [exportProjectData, project.name]);
 
   const handleProjectImport = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -131,7 +157,7 @@ function App() {
           if (importProjectData(data)) {
             // Success feedback could be added here
           } else {
-            alert('Failed to import project. Please check the file format.');
+            alert("Failed to import project. Please check the file format.");
           }
         };
         reader.readAsText(file);
@@ -140,16 +166,35 @@ function App() {
     input.click();
   }, [importProjectData]);
 
-  const handlePixelsChange = useCallback((pixels: boolean[][]) => {
-    if (activeItem?.spriteData) {
-      updateActiveSprite({ pixels });
-    }
-  }, [activeItem, updateActiveSprite]);
+  const handlePixelsChange = useCallback(
+    (pixels: boolean[][]) => {
+      if (activeItem?.spriteData) {
+        updateActiveSprite({ pixels });
+      }
+    },
+    [activeItem, updateActiveSprite]
+  );
 
-  const sprites = project.items
-    .filter(item => item.spriteData)
-    .map(item => item.spriteData!)
-    .filter(Boolean);
+  // Recursively collect all sprites from the project, including those in folders
+  const getAllSprites = (items: typeof project.items): SpriteData[] => {
+    const sprites: SpriteData[] = [];
+
+    const collectSprites = (itemList: typeof project.items) => {
+      for (const item of itemList) {
+        if (item.spriteData) {
+          sprites.push(item.spriteData);
+        }
+        if (item.children) {
+          collectSprites(item.children);
+        }
+      }
+    };
+
+    collectSprites(items);
+    return sprites;
+  };
+
+  const sprites = getAllSprites(project.items);
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col">
@@ -161,11 +206,13 @@ function App() {
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-400">
                 {project.name}
-                {project.isModified && <span className="text-yellow-400 ml-1">*</span>}
+                {project.isModified && (
+                  <span className="text-yellow-400 ml-1">*</span>
+                )}
               </span>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <button
               onClick={newProject}
@@ -175,7 +222,7 @@ function App() {
               <FolderOpen size={14} className="mr-1" />
               New
             </button>
-            
+
             <button
               onClick={handleProjectImport}
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm flex items-center"
@@ -184,7 +231,7 @@ function App() {
               <Upload size={14} className="mr-1" />
               Import
             </button>
-            
+
             <button
               onClick={handleProjectExport}
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm flex items-center"
@@ -193,7 +240,7 @@ function App() {
               <Save size={14} className="mr-1" />
               Export
             </button>
-            
+
             <button
               onClick={() => setShowExportDialog(true)}
               disabled={!activeItem?.spriteData && sprites.length === 0}
@@ -231,17 +278,32 @@ function App() {
               {/* Toolbar */}
               <Toolbar
                 activeTool={canvasSettings.tool}
-                onToolChange={(tool) => setCanvasSettings(prev => ({ ...prev, tool }))}
+                onToolChange={(tool) =>
+                  setCanvasSettings((prev) => ({ ...prev, tool }))
+                }
                 zoom={canvasSettings.zoom}
-                onZoomChange={(zoom) => setCanvasSettings(prev => ({ ...prev, zoom }))}
+                onZoomChange={(zoom) =>
+                  setCanvasSettings((prev) => ({ ...prev, zoom }))
+                }
                 showGrid={canvasSettings.showGrid}
-                onToggleGrid={() => setCanvasSettings(prev => ({ ...prev, showGrid: !prev.showGrid }))}
+                onToggleGrid={() =>
+                  setCanvasSettings((prev) => ({
+                    ...prev,
+                    showGrid: !prev.showGrid,
+                  }))
+                }
                 eraserSize={canvasSettings.eraserSize}
-                onEraserSizeChange={(size) => setCanvasSettings(prev => ({ ...prev, eraserSize: size }))}
+                onEraserSizeChange={(size) =>
+                  setCanvasSettings((prev) => ({ ...prev, eraserSize: size }))
+                }
                 brushSize={canvasSettings.brushSize}
-                onBrushSizeChange={(size) => setCanvasSettings(prev => ({ ...prev, brushSize: size }))}
+                onBrushSizeChange={(size) =>
+                  setCanvasSettings((prev) => ({ ...prev, brushSize: size }))
+                }
                 brushStyle={canvasSettings.brushStyle}
-                onBrushStyleChange={(style) => setCanvasSettings(prev => ({ ...prev, brushStyle: style }))}
+                onBrushStyleChange={(style) =>
+                  setCanvasSettings((prev) => ({ ...prev, brushStyle: style }))
+                }
                 canUndo={canvasHook.canUndo}
                 canRedo={canvasHook.canRedo}
                 onUndo={canvasHook.undo}
@@ -262,8 +324,18 @@ function App() {
                 brushStyle={canvasSettings.brushStyle}
                 onUndo={canvasHook.undo}
                 onRedo={canvasHook.redo}
-                onToolChange={(tool) => setCanvasSettings(prev => ({ ...prev, tool: tool as DrawingTool }))}
-                onToggleGrid={() => setCanvasSettings(prev => ({ ...prev, showGrid: !prev.showGrid }))}
+                onToolChange={(tool) =>
+                  setCanvasSettings((prev) => ({
+                    ...prev,
+                    tool: tool as DrawingTool,
+                  }))
+                }
+                onToggleGrid={() =>
+                  setCanvasSettings((prev) => ({
+                    ...prev,
+                    showGrid: !prev.showGrid,
+                  }))
+                }
               />
             </>
           ) : (
@@ -271,17 +343,21 @@ function App() {
             <div className="flex-1 flex items-center justify-center bg-gray-900">
               <div className="text-center text-gray-400">
                 <div className="text-6xl mb-4">🎨</div>
-                <h2 className="text-2xl font-semibold mb-2">Welcome to Arduboy Sprite Editor</h2>
-                <p className="text-lg mb-6">Create pixel-perfect sprites for your Arduboy games</p>
+                <h2 className="text-2xl font-semibold mb-2">
+                  Welcome to Arduboy Sprite Editor
+                </h2>
+                <p className="text-lg mb-6">
+                  Create pixel-perfect sprites for your Arduboy games
+                </p>
                 <div className="space-x-4">
                   <button
-                    onClick={() => handleItemCreate('sprite')}
+                    onClick={() => handleItemCreate("sprite")}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
                   >
                     Create New Sprite
                   </button>
                   <button
-                    onClick={() => handleItemCreate('screen')}
+                    onClick={() => handleItemCreate("screen")}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white"
                   >
                     Create New Screen
