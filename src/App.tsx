@@ -20,6 +20,7 @@ function App() {
     createSpriteWithSize,
     createScreenWithSize,
     createFolder,
+    createUniqueItemName,
     addItem,
     addItemWithSize,
     updateItem,
@@ -61,22 +62,35 @@ function App() {
     (type: "sprite" | "screen" | "folder", parentId?: string) => {
       let item;
       switch (type) {
-        case "sprite":
-          item = createSprite("New Sprite", 8, 8, parentId);
+        case "sprite": {
+          const spriteName = createUniqueItemName("New Sprite", parentId);
+          item = createSprite(spriteName, 8, 8, parentId);
           break;
-        case "screen":
-          item = createScreen("New Screen", parentId);
+        }
+        case "screen": {
+          const screenName = createUniqueItemName("New Screen", parentId);
+          item = createScreen(screenName, parentId);
           break;
-        case "folder":
-          item = createFolder("New Folder", parentId);
+        }
+        case "folder": {
+          const folderName = createUniqueItemName("New Folder", parentId);
+          item = createFolder(folderName, parentId);
           break;
+        }
       }
       addItem(item);
       if (item.spriteData) {
         setActiveItemById(item.id);
       }
     },
-    [createSprite, createScreen, createFolder, addItem, setActiveItemById]
+    [
+      createSprite,
+      createScreen,
+      createFolder,
+      createUniqueItemName,
+      addItem,
+      setActiveItemById,
+    ]
   );
 
   const handleItemCreateWithSize = useCallback(
@@ -99,18 +113,27 @@ function App() {
       name: string,
       parentId?: string
     ) => {
+      // Ensure unique name
+      const uniqueName = createUniqueItemName(name, parentId);
+
       let item;
       if (type === "sprite") {
-        item = createSpriteWithSize(name, width, height, parentId);
+        item = createSpriteWithSize(uniqueName, width, height, parentId);
       } else {
-        item = createScreenWithSize(name, width, height, parentId);
+        item = createScreenWithSize(uniqueName, width, height, parentId);
       }
       addItem(item);
       if (item.spriteData) {
         setActiveItemById(item.id);
       }
     },
-    [createSpriteWithSize, createScreenWithSize, addItem, setActiveItemById]
+    [
+      createSpriteWithSize,
+      createScreenWithSize,
+      createUniqueItemName,
+      addItem,
+      setActiveItemById,
+    ]
   );
   const handleItemRename = useCallback(
     (itemId: string, name: string) => {

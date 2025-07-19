@@ -14,10 +14,10 @@ export function useProject() {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        console.error('Failed to load project from storage:', e);
+        console.error("Failed to load project from storage:", e);
       }
     }
-    
+
     return createNewProject();
   });
 
@@ -33,7 +33,7 @@ export function useProject() {
     const interval = setInterval(() => {
       if (project.isModified) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
-        setProject(prev => ({ ...prev, isModified: false }));
+        setProject((prev) => ({ ...prev, isModified: false }));
       }
     }, AUTOSAVE_INTERVAL);
 
@@ -46,193 +46,288 @@ export function useProject() {
   }, [project]);
 
   const markAsModified = useCallback(() => {
-    setProject(prev => ({
+    setProject((prev) => ({
       ...prev,
       isModified: true,
-      lastModified: new Date()
+      lastModified: new Date(),
     }));
   }, []);
 
-  const createSprite = useCallback((name: string, width: number = 128, height: number = 64, parentId?: string): ProjectItem => {
-    const sprite: SpriteData = {
-      id: generateId(),
-      name,
-      width,
-      height,
-      pixels: createEmptyPixelGrid(width, height)
-    };
+  const createSprite = useCallback(
+    (
+      name: string,
+      width: number = 128,
+      height: number = 64,
+      parentId?: string
+    ): ProjectItem => {
+      const sprite: SpriteData = {
+        id: generateId(),
+        name,
+        width,
+        height,
+        pixels: createEmptyPixelGrid(width, height),
+      };
 
-    const item: ProjectItem = {
-      id: generateId(),
-      name,
-      type: 'sprite',
-      parentId,
-      spriteData: sprite
-    };
+      const item: ProjectItem = {
+        id: generateId(),
+        name,
+        type: "sprite",
+        parentId,
+        spriteData: sprite,
+      };
 
-    return item;
-  }, []);
+      return item;
+    },
+    []
+  );
 
-  const createScreen = useCallback((name: string, parentId?: string): ProjectItem => {
-    return createSprite(name, 128, 64, parentId);
-  }, [createSprite]);
+  const createScreen = useCallback(
+    (name: string, parentId?: string): ProjectItem => {
+      return createSprite(name, 128, 64, parentId);
+    },
+    [createSprite]
+  );
 
-  const createSpriteWithSize = useCallback((name: string, width: number, height: number, parentId?: string): ProjectItem => {
-    return createSprite(name, width, height, parentId);
-  }, [createSprite]);
+  const createSpriteWithSize = useCallback(
+    (
+      name: string,
+      width: number,
+      height: number,
+      parentId?: string
+    ): ProjectItem => {
+      return createSprite(name, width, height, parentId);
+    },
+    [createSprite]
+  );
 
-  const createScreenWithSize = useCallback((name: string, width: number, height: number, parentId?: string): ProjectItem => {
-    return createSprite(name, width, height, parentId);
-  }, [createSprite]);
-  const createFolder = useCallback((name: string, parentId?: string): ProjectItem => {
-    return {
-      id: generateId(),
-      name,
-      type: 'folder',
-      parentId,
-      children: [],
-      isExpanded: true
-    };
-  }, []);
+  const createScreenWithSize = useCallback(
+    (
+      name: string,
+      width: number,
+      height: number,
+      parentId?: string
+    ): ProjectItem => {
+      return createSprite(name, width, height, parentId);
+    },
+    [createSprite]
+  );
+  const createFolder = useCallback(
+    (name: string, parentId?: string): ProjectItem => {
+      return {
+        id: generateId(),
+        name,
+        type: "folder",
+        parentId,
+        children: [],
+        isExpanded: true,
+      };
+    },
+    []
+  );
 
-  const addItem = useCallback((item: ProjectItem) => {
-    setProject(prev => ({
-      ...prev,
-      items: [...prev.items, item]
-    }));
-    markAsModified();
-  }, [markAsModified]);
+  const createUniqueItemName = useCallback(
+    (baseName: string, parentId?: string): string => {
+      return generateUniqueName(baseName, project.items, parentId);
+    },
+    [project.items]
+  );
 
-  const setActiveItemById = useCallback((itemId: string | null) => {
-    if (!itemId) {
-      setActiveItem(null);
-      setProject(prev => ({ ...prev, activeItemId: undefined }));
-      return;
-    }
+  const addItem = useCallback(
+    (item: ProjectItem) => {
+      setProject((prev) => ({
+        ...prev,
+        items: addItemToTree(prev.items, item, item.parentId),
+      }));
+      markAsModified();
+    },
+    [markAsModified]
+  );
 
-    const item = findItemById(project.items, itemId);
-    if (item) {
-      setActiveItem(item);
-      setProject(prev => ({ ...prev, activeItemId: itemId }));
-    }
-  }, [project.items]);
+  const setActiveItemById = useCallback(
+    (itemId: string | null) => {
+      if (!itemId) {
+        setActiveItem(null);
+        setProject((prev) => ({ ...prev, activeItemId: undefined }));
+        return;
+      }
 
-  const addItemWithSize = useCallback((type: 'sprite' | 'screen', width: number, height: number, parentId?: string) => {
-    const name = type === 'sprite' ? 'New Sprite' : 'New Screen';
-    const item = type === 'sprite' 
-      ? createSpriteWithSize(name, width, height, parentId)
-      : createScreenWithSize(name, width, height, parentId);
-    
-    addItem(item);
-    if (item.spriteData) {
-      setActiveItemById(item.id);
-    }
-  }, [createSpriteWithSize, createScreenWithSize, addItem, setActiveItemById]);
-  const updateItem = useCallback((itemId: string, updates: Partial<ProjectItem>) => {
-    setProject(prev => ({
-      ...prev,
-      items: updateItemInTree(prev.items, itemId, updates)
-    }));
-    markAsModified();
-  }, [markAsModified]);
+      const item = findItemById(project.items, itemId);
+      if (item) {
+        setActiveItem(item);
+        setProject((prev) => ({ ...prev, activeItemId: itemId }));
+      }
+    },
+    [project.items]
+  );
 
-  const resizeItem = useCallback((itemId: string, width: number, height: number) => {
-    const item = findItemById(project.items, itemId);
-    if (!item?.spriteData) return;
+  const addItemWithSize = useCallback(
+    (
+      type: "sprite" | "screen",
+      width: number,
+      height: number,
+      parentId?: string
+    ) => {
+      const baseName = type === "sprite" ? "New Sprite" : "New Screen";
+      const uniqueName = generateUniqueName(baseName, project.items, parentId);
+      const item =
+        type === "sprite"
+          ? createSpriteWithSize(uniqueName, width, height, parentId)
+          : createScreenWithSize(uniqueName, width, height, parentId);
 
-    // Create new pixel grid with the new dimensions
-    const newPixels = createEmptyPixelGrid(width, height);
-    
-    // Copy existing pixels that fit in the new dimensions
-    const oldPixels = item.spriteData.pixels;
-    const copyWidth = Math.min(width, item.spriteData.width);
-    const copyHeight = Math.min(height, item.spriteData.height);
-    
-    for (let y = 0; y < copyHeight; y++) {
-      for (let x = 0; x < copyWidth; x++) {
-        if (oldPixels[y] && oldPixels[y][x] !== undefined) {
-          newPixels[y][x] = oldPixels[y][x];
+      addItem(item);
+      if (item.spriteData) {
+        setActiveItemById(item.id);
+      }
+    },
+    [
+      createSpriteWithSize,
+      createScreenWithSize,
+      addItem,
+      setActiveItemById,
+      project.items,
+    ]
+  );
+  const updateItem = useCallback(
+    (itemId: string, updates: Partial<ProjectItem>) => {
+      setProject((prev) => ({
+        ...prev,
+        items: updateItemInTree(prev.items, itemId, updates),
+      }));
+      markAsModified();
+    },
+    [markAsModified]
+  );
+
+  const resizeItem = useCallback(
+    (itemId: string, width: number, height: number) => {
+      const item = findItemById(project.items, itemId);
+      if (!item?.spriteData) return;
+
+      // Create new pixel grid with the new dimensions
+      const newPixels = createEmptyPixelGrid(width, height);
+
+      // Copy existing pixels that fit in the new dimensions
+      const oldPixels = item.spriteData.pixels;
+      const copyWidth = Math.min(width, item.spriteData.width);
+      const copyHeight = Math.min(height, item.spriteData.height);
+
+      for (let y = 0; y < copyHeight; y++) {
+        for (let x = 0; x < copyWidth; x++) {
+          if (oldPixels[y] && oldPixels[y][x] !== undefined) {
+            newPixels[y][x] = oldPixels[y][x];
+          }
         }
       }
-    }
 
-    const updatedSpriteData: SpriteData = {
-      ...item.spriteData,
-      width,
-      height,
-      pixels: newPixels
-    };
-
-    updateItem(itemId, { spriteData: updatedSpriteData });
-    
-    // Update active item if it's the one being resized
-    if (activeItem?.id === itemId) {
-      setActiveItem(prev => prev ? {
-        ...prev,
-        spriteData: updatedSpriteData
-      } : null);
-    }
-  }, [project.items, updateItem, activeItem]);
-  const deleteItem = useCallback((itemId: string) => {
-    setProject(prev => ({
-      ...prev,
-      items: removeItemFromTree(prev.items, itemId),
-      activeItemId: prev.activeItemId === itemId ? undefined : prev.activeItemId
-    }));
-    
-    if (activeItem?.id === itemId) {
-      setActiveItem(null);
-    }
-    
-    markAsModified();
-  }, [activeItem, markAsModified]);
-
-  const duplicateItem = useCallback((itemId: string) => {
-    const item = findItemById(project.items, itemId);
-    if (!item) return;
-
-    const duplicated: ProjectItem = {
-      ...item,
-      id: generateId(),
-      name: `${item.name} Copy`,
-      spriteData: item.spriteData ? {
+      const updatedSpriteData: SpriteData = {
         ...item.spriteData,
+        width,
+        height,
+        pixels: newPixels,
+      };
+
+      updateItem(itemId, { spriteData: updatedSpriteData });
+
+      // Update active item if it's the one being resized
+      if (activeItem?.id === itemId) {
+        setActiveItem((prev) =>
+          prev
+            ? {
+                ...prev,
+                spriteData: updatedSpriteData,
+              }
+            : null
+        );
+      }
+    },
+    [project.items, updateItem, activeItem]
+  );
+  const deleteItem = useCallback(
+    (itemId: string) => {
+      setProject((prev) => ({
+        ...prev,
+        items: removeItemFromTree(prev.items, itemId),
+        activeItemId:
+          prev.activeItemId === itemId ? undefined : prev.activeItemId,
+      }));
+
+      if (activeItem?.id === itemId) {
+        setActiveItem(null);
+      }
+
+      markAsModified();
+    },
+    [activeItem, markAsModified]
+  );
+
+  const duplicateItem = useCallback(
+    (itemId: string) => {
+      const item = findItemById(project.items, itemId);
+      if (!item) return;
+
+      const baseName = `${item.name} Copy`;
+      const uniqueName = generateUniqueName(
+        baseName,
+        project.items,
+        item.parentId
+      );
+
+      const duplicated: ProjectItem = {
+        ...item,
         id: generateId(),
-        name: `${item.name} Copy`
-      } : undefined
-    };
+        name: uniqueName,
+        spriteData: item.spriteData
+          ? {
+              ...item.spriteData,
+              id: generateId(),
+              name: uniqueName,
+            }
+          : undefined,
+      };
 
-    addItem(duplicated);
-  }, [project.items, addItem]);
+      addItem(duplicated);
+    },
+    [project.items, addItem]
+  );
 
-  const updateActiveSprite = useCallback((updates: Partial<SpriteData>) => {
-    if (!activeItem?.spriteData) return;
+  const updateActiveSprite = useCallback(
+    (updates: Partial<SpriteData>) => {
+      if (!activeItem?.spriteData) return;
 
-    const updatedSprite = { ...activeItem.spriteData, ...updates };
-    updateItem(activeItem.id, { spriteData: updatedSprite });
-    
-    setActiveItem(prev => prev ? {
-      ...prev,
-      spriteData: updatedSprite
-    } : null);
-  }, [activeItem, updateItem]);
+      const updatedSprite = { ...activeItem.spriteData, ...updates };
+      updateItem(activeItem.id, { spriteData: updatedSprite });
+
+      setActiveItem((prev) =>
+        prev
+          ? {
+              ...prev,
+              spriteData: updatedSprite,
+            }
+          : null
+      );
+    },
+    [activeItem, updateItem]
+  );
 
   const exportProjectData = useCallback(() => {
     return JSON.stringify(project, null, 2);
   }, [project]);
 
-  const importProjectData = useCallback((data: string) => {
-    try {
-      const imported = JSON.parse(data);
-      setProject(imported);
-      setActiveItem(null);
-      markAsModified();
-      return true;
-    } catch (e) {
-      console.error('Failed to import project:', e);
-      return false;
-    }
-  }, [markAsModified]);
+  const importProjectData = useCallback(
+    (data: string) => {
+      try {
+        const imported = JSON.parse(data);
+        setProject(imported);
+        setActiveItem(null);
+        markAsModified();
+        return true;
+      } catch (e) {
+        console.error("Failed to import project:", e);
+        return false;
+      }
+    },
+    [markAsModified]
+  );
 
   const newProject = useCallback(() => {
     const fresh = createNewProject();
@@ -240,29 +335,36 @@ export function useProject() {
     setActiveItem(null);
   }, []);
 
-  const moveItem = useCallback((itemId: string, newParentId?: string) => {
-    setProject(prev => {
-      // Find the item to move
-      const itemToMove = findItemById(prev.items, itemId);
-      if (!itemToMove) return prev;
+  const moveItem = useCallback(
+    (itemId: string, newParentId?: string) => {
+      setProject((prev) => {
+        // Find the item to move
+        const itemToMove = findItemById(prev.items, itemId);
+        if (!itemToMove) return prev;
 
-      // Remove item from its current location
-      const itemsWithoutMoved = removeItemFromTree(prev.items, itemId);
-      
-      // Update the item's parentId
-      const updatedItem = { ...itemToMove, parentId: newParentId };
-      
-      // Add item to new location
-      const newItems = addItemToTree(itemsWithoutMoved, updatedItem, newParentId);
-      
-      return {
-        ...prev,
-        items: newItems,
-        isModified: true
-      };
-    });
-    markAsModified();
-  }, [markAsModified]);
+        // Remove item from its current location
+        const itemsWithoutMoved = removeItemFromTree(prev.items, itemId);
+
+        // Update the item's parentId
+        const updatedItem = { ...itemToMove, parentId: newParentId };
+
+        // Add item to new location
+        const newItems = addItemToTree(
+          itemsWithoutMoved,
+          updatedItem,
+          newParentId
+        );
+
+        return {
+          ...prev,
+          items: newItems,
+          isModified: true,
+        };
+      });
+      markAsModified();
+    },
+    [markAsModified]
+  );
 
   return {
     project,
@@ -272,6 +374,7 @@ export function useProject() {
     createSpriteWithSize,
     createScreenWithSize,
     createFolder,
+    createUniqueItemName,
     addItem,
     addItemWithSize,
     updateItem,
@@ -284,13 +387,50 @@ export function useProject() {
     exportProjectData,
     importProjectData,
     newProject,
-    markAsModified
+    markAsModified,
   };
 }
 
 // Utility functions
 function generateId(): string {
   return Math.random().toString(36).substr(2, 9);
+}
+
+function generateUniqueName(
+  baseName: string,
+  items: ProjectItem[],
+  parentId?: string
+): string {
+  // Get all items in the same scope (same parent)
+  const getAllItemsRecursively = (itemList: ProjectItem[]): ProjectItem[] => {
+    let allItems: ProjectItem[] = [];
+    for (const item of itemList) {
+      allItems.push(item);
+      if (item.children) {
+        allItems = allItems.concat(getAllItemsRecursively(item.children));
+      }
+    }
+    return allItems;
+  };
+
+  const allItems = getAllItemsRecursively(items);
+  const siblingsInScope = allItems.filter((item) => item.parentId === parentId);
+  const existingNames = siblingsInScope.map((item) => item.name);
+
+  if (!existingNames.includes(baseName)) {
+    return baseName;
+  }
+
+  // Find the next available number
+  let counter = 1;
+  let candidateName = `${baseName}-${counter}`;
+
+  while (existingNames.includes(candidateName)) {
+    counter++;
+    candidateName = `${baseName}-${counter}`;
+  }
+
+  return candidateName;
 }
 
 function createNewProject(): Project {
