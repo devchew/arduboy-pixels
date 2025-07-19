@@ -13,7 +13,7 @@ import {
   Grid3X3,
   Clover as Invert,
 } from "lucide-react";
-import { DrawingTool, BrushStyle } from "../types";
+import { DrawingTool, BrushStyle, PencilColor } from "../types";
 import { ZoomControls } from "./ZoomControls";
 
 interface ToolbarProps {
@@ -29,6 +29,8 @@ interface ToolbarProps {
   onBrushSizeChange: (size: number) => void;
   brushStyle: BrushStyle;
   onBrushStyleChange: (style: BrushStyle) => void;
+  pencilColor: PencilColor;
+  onPencilColorChange: (color: PencilColor) => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -81,6 +83,8 @@ export function Toolbar({
   onBrushSizeChange,
   brushStyle,
   onBrushStyleChange,
+  pencilColor,
+  onPencilColorChange,
   canUndo,
   canRedo,
   onUndo,
@@ -202,6 +206,29 @@ export function Toolbar({
                 >
                   <Circle size={14} />
                 </button>
+              </div>
+
+              {/* Pencil Color Controls */}
+              <div className="flex items-center space-x-1 ml-2">
+                <span className="text-xs text-gray-400">Color:</span>
+                <button
+                  onClick={() => onPencilColorChange("black")}
+                  className={`w-6 h-6 rounded border-2 ${
+                    pencilColor === "black"
+                      ? "border-blue-400 bg-black"
+                      : "border-gray-500 bg-black hover:border-gray-400"
+                  }`}
+                  title="Black (X to switch)"
+                />
+                <button
+                  onClick={() => onPencilColorChange("white")}
+                  className={`w-6 h-6 rounded border-2 ${
+                    pencilColor === "white"
+                      ? "border-blue-400 bg-white"
+                      : "border-gray-500 bg-white hover:border-gray-400"
+                  }`}
+                  title="White (X to switch)"
+                />
               </div>
             </div>
             <div className="w-px h-6 bg-gray-600" />

@@ -73,6 +73,7 @@ export type DrawingTool =
   | 'invert';
 
 export type BrushStyle = 'square' | 'round';
+export type PencilColor = "black" | "white";
 
 export interface CanvasState {
   zoom: number;
@@ -83,6 +84,7 @@ export interface CanvasState {
   eraserSize: number;
   brushSize: number;
   brushStyle: BrushStyle;
+  pencilColor: PencilColor;
 }
 
 export interface HistoryState {

@@ -18,12 +18,13 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
     offsetX: 0,
     offsetY: 0,
     showGrid: true,
-    tool: 'pencil',
+    tool: "pencil",
     eraserSize: 1,
     brushSize: 1,
-    brushStyle: 'square'
+    brushStyle: "square",
+    pencilColor: "black",
   });
-  
+
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -31,27 +32,30 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
   const [previewPixels, setPreviewPixels] = useState<boolean[][] | null>(null);
 
   // Add current state to history
-  const addToHistory = useCallback((newPixels: boolean[][]) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({
-      pixels: DrawingUtils.clonePixelGrid(newPixels),
-      timestamp: Date.now()
-    });
-    
-    // Limit history to 50 items
-    if (newHistory.length > 50) {
-      newHistory.shift();
-    } else {
-      setHistoryIndex(prev => prev + 1);
-    }
-    
-    setHistory(newHistory);
-  }, [history, historyIndex]);
+  const addToHistory = useCallback(
+    (newPixels: boolean[][]) => {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push({
+        pixels: DrawingUtils.clonePixelGrid(newPixels),
+        timestamp: Date.now(),
+      });
+
+      // Limit history to 50 items
+      if (newHistory.length > 50) {
+        newHistory.shift();
+      } else {
+        setHistoryIndex((prev) => prev + 1);
+      }
+
+      setHistory(newHistory);
+    },
+    [history, historyIndex]
+  );
 
   // Undo operation
   const undo = useCallback(() => {
     if (historyIndex > 0) {
-      setHistoryIndex(prev => prev - 1);
+      setHistoryIndex((prev) => prev - 1);
       const previousState = history[historyIndex - 1];
       onPixelsChange(DrawingUtils.clonePixelGrid(previousState.pixels));
     }
@@ -60,76 +64,122 @@ export function useCanvas({ pixels, onPixelsChange, width, height }: UseCanvasPr
   // Redo operation
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(prev => prev + 1);
+      setHistoryIndex((prev) => prev + 1);
       const nextState = history[historyIndex + 1];
       onPixelsChange(DrawingUtils.clonePixelGrid(nextState.pixels));
     }
   }, [history, historyIndex, onPixelsChange]);
 
   // Convert screen coordinates to pixel coordinates
-  const screenToPixel = useCallback((screenX: number, screenY: number): Point => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((screenX - rect.left) / canvasState.zoom);
-    const y = Math.floor((screenY - rect.top) / canvasState.zoom);
-    
-    return { x, y };
-  }, [canvasState]);
+  const screenToPixel = useCallback(
+    (screenX: number, screenY: number): Point => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((screenX - rect.left) / canvasState.zoom);
+      const y = Math.floor((screenY - rect.top) / canvasState.zoom);
+
+      return { x, y };
+    },
+    [canvasState]
+  );
 
   // Handle drawing operations
-  const draw = useCallback((point: Point, tool: DrawingTool, isErasing: boolean = false) => {
-    const newPixels = DrawingUtils.clonePixelGrid(pixels);
-    
-    switch (tool) {
-      case 'pencil': {
-        // Draw with brush size and style
-        const size = canvasState.brushSize;
-        const style = canvasState.brushStyle;
-        
-        if (size === 1) {
-          DrawingUtils.setPixelAtPoint(newPixels, point, !isErasing);
-        } else {
-          // Apply brush pattern based on style
-          for (let dy = -Math.floor(size / 2); dy <= Math.floor(size / 2); dy++) {
-            for (let dx = -Math.floor(size / 2); dx <= Math.floor(size / 2); dx++) {
-              const targetPoint = { x: point.x + dx, y: point.y + dy };
-              
-              if (style === 'round') {
-                // Round brush: check if point is within circle radius
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= size / 2) {
-                  DrawingUtils.setPixelAtPoint(newPixels, targetPoint, !isErasing);
+  const draw = useCallback(
+    (point: Point, tool: DrawingTool, isErasing: boolean = false) => {
+      const newPixels = DrawingUtils.clonePixelGrid(pixels);
+
+      switch (tool) {
+        case "pencil": {
+          // Draw with brush size and style, using selected color
+          const size = canvasState.brushSize;
+          const style = canvasState.brushStyle;
+          const pixelValue = canvasState.pencilColor === "black";
+
+          if (size === 1) {
+            DrawingUtils.setPixelAtPoint(newPixels, point, pixelValue);
+          } else {
+            // Apply brush pattern based on style
+            for (
+              let dy = -Math.floor(size / 2);
+              dy <= Math.floor(size / 2);
+              dy++
+            ) {
+              for (
+                let dx = -Math.floor(size / 2);
+                dx <= Math.floor(size / 2);
+                dx++
+              ) {
+                const targetPoint = { x: point.x + dx, y: point.y + dy };
+
+                if (style === "round") {
+                  // Round brush: check if point is within circle radius
+                  const distance = Math.sqrt(dx * dx + dy * dy);
+                  if (distance <= size / 2) {
+                    DrawingUtils.setPixelAtPoint(
+                      newPixels,
+                      targetPoint,
+                      pixelValue
+                    );
+                  }
+                } else {
+                  // Square brush: draw all points in square
+                  DrawingUtils.setPixelAtPoint(
+                    newPixels,
+                    targetPoint,
+                    pixelValue
+                  );
                 }
-              } else {
-                // Square brush: draw all points in square
-                DrawingUtils.setPixelAtPoint(newPixels, targetPoint, !isErasing);
               }
             }
           }
+          break;
         }
-        break;
-      }
-        
-      case 'eraser': {
-        // Draw a square eraser
-        const size = canvasState.eraserSize;
-        for (let dy = -Math.floor(size / 2); dy <= Math.floor(size / 2); dy++) {
-          for (let dx = -Math.floor(size / 2); dx <= Math.floor(size / 2); dx++) {
-            DrawingUtils.setPixelAtPoint(newPixels, { x: point.x + dx, y: point.y + dy }, false);
+
+        case "eraser": {
+          // Draw a square eraser
+          const size = canvasState.eraserSize;
+          for (
+            let dy = -Math.floor(size / 2);
+            dy <= Math.floor(size / 2);
+            dy++
+          ) {
+            for (
+              let dx = -Math.floor(size / 2);
+              dx <= Math.floor(size / 2);
+              dx++
+            ) {
+              DrawingUtils.setPixelAtPoint(
+                newPixels,
+                { x: point.x + dx, y: point.y + dy },
+                false
+              );
+            }
           }
+          break;
         }
-        break;
+
+        case "fill":
+          DrawingUtils.floodFill(
+            newPixels,
+            point,
+            !DrawingUtils.getPixelAtPoint(pixels, point)
+          );
+          break;
       }
-        
-      case 'fill':
-        DrawingUtils.floodFill(newPixels, point, !DrawingUtils.getPixelAtPoint(pixels, point));
-        break;
-    }
-    
-    onPixelsChange(newPixels);
-  }, [pixels, onPixelsChange, canvasState.eraserSize, canvasState.brushSize, canvasState.brushStyle]);
+
+      onPixelsChange(newPixels);
+    },
+    [
+      pixels,
+      onPixelsChange,
+      canvasState.eraserSize,
+      canvasState.brushSize,
+      canvasState.brushStyle,
+      canvasState.pencilColor,
+    ]
+  );
 
   // Handle shape preview
   const updateShapePreview = useCallback((currentPoint: Point) => {

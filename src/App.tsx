@@ -10,7 +10,7 @@ import { ExportDialog } from "./components/ExportDialog";
 import { CompositionEditor } from "./components/CompositionEditor";
 import { useProject } from "./hooks/useProject";
 import { useCanvas } from "./hooks/useCanvas";
-import { DrawingTool, BrushStyle, SpriteData } from "./types";
+import { DrawingTool, BrushStyle, SpriteData, PencilColor } from "./types";
 
 function App() {
   const {
@@ -37,7 +37,6 @@ function App() {
     duplicateCompositionLayer,
     exportProjectData,
     importProjectData,
-    newProject,
     moveItem,
   } = useProject();
 
@@ -49,6 +48,7 @@ function App() {
     eraserSize: 1,
     brushSize: 1,
     brushStyle: "square" as BrushStyle,
+    pencilColor: "black" as PencilColor,
   });
 
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -291,15 +291,6 @@ function App() {
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={newProject}
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm flex items-center"
-              title="New Project"
-            >
-              <FolderOpen size={14} className="mr-1" />
-              New
-            </button>
-
-            <button
               onClick={handleProjectImport}
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm flex items-center"
               title="Import Project"
@@ -380,6 +371,10 @@ function App() {
                 onBrushStyleChange={(style) =>
                   setCanvasSettings((prev) => ({ ...prev, brushStyle: style }))
                 }
+                pencilColor={canvasSettings.pencilColor}
+                onPencilColorChange={(pencilColor) =>
+                  setCanvasSettings((prev) => ({ ...prev, pencilColor }))
+                }
                 canUndo={canvasHook.canUndo}
                 canRedo={canvasHook.canRedo}
                 onUndo={canvasHook.undo}
@@ -401,6 +396,7 @@ function App() {
                   eraserSize={canvasSettings.eraserSize}
                   brushSize={canvasSettings.brushSize}
                   brushStyle={canvasSettings.brushStyle}
+                  pencilColor={canvasSettings.pencilColor}
                   onUndo={canvasHook.undo}
                   onRedo={canvasHook.redo}
                   onToolChange={(tool) =>
@@ -413,6 +409,12 @@ function App() {
                     setCanvasSettings((prev) => ({
                       ...prev,
                       showGrid: !prev.showGrid,
+                    }))
+                  }
+                  onPencilColorChange={(pencilColor) =>
+                    setCanvasSettings((prev) => ({
+                      ...prev,
+                      pencilColor,
                     }))
                   }
                 />
